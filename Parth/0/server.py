@@ -1,5 +1,7 @@
 from sys import argv
 import socket
+import json
+from datetime import datetime
 
 if len(argv) != 3:
     print(f"Usage: {argv[0]} <host> <port>")
@@ -13,9 +15,11 @@ client_conn, client_addr = conn_accepting_sock.accept()
 print(f"Connected by {client_addr}")
 while True:
     data = client_conn.recv(1024)
+    now="\n"+str(datetime.now())
     if not data:
         break
     client_conn.sendall(data)
+    client_conn.sendall(now.encode())
 
 client_conn.close()
 conn_accepting_sock.close()
