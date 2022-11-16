@@ -13,6 +13,7 @@ server_addr = (argv[1], int(argv[2]))
 client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_sock.connect(server_addr)
 
+client_sock.sendall(str(id).encode())
 
 def listen():
     data = client_sock.recv(1024)

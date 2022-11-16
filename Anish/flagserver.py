@@ -31,25 +31,27 @@ sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None
 #     data = types.SimpleNamespace(addr=other_server_addr, inb=b"", outb=b"")
 #     sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 # End
-u = 0
+
 # Client to server
 #client_pub_keys_servers = {12345:4, 23456:1}
 
-cliadd={}
 
-total_data = []
+total_data = {}
 
 def accept_wrapper(sock):
-    global u
     client_sock, client_addr = sock.accept()
     print(f"Accepted connection from client {client_addr}")
-    cliadd[u] = client_addr
-    total_data.append([])
+    
     client_sock.setblocking(False)
-    data = types.SimpleNamespace(addr=client_addr, inb=b"", outb=b"", id=u)
+    data = types.SimpleNamespace(addr=client_addr, inb=b"", outb=b"", id=0)
     events = selectors.EVENT_READ | selectors.EVENT_WRITE
     sel.register(fileobj=client_sock, events=events, data=data)
-    u = u+1 
+
+    t = int(client_sock.recv(1024).decode())
+    data.id = t
+    if t not in total_data.keys():
+        
+        total_data[t]=[]
 
 
 def service_connection(key, event):
@@ -61,7 +63,7 @@ def service_connection(key, event):
             json_data = json.loads(recv_data)
             print(json_data)
             recipient = json_data['recipient']
-            if(recipient<u):
+            if recipient in total_data.keys():
                 print(recipient)
                 print(total_data)
                 total_data[recipient].append(recv_data)
