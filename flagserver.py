@@ -56,6 +56,10 @@ def accept_wrapper(sock):
     
     while (True):
         req_str = client_sock.recv(1024).decode()
+        print()
+        print('LOADING :')
+        print(req_str)
+        print()
         req = json.loads(req_str)
 
         if (req["hdr"] == "registering"):
@@ -112,8 +116,12 @@ def service_connection(key, event):
     client_sock = key.fileobj
     data = key.data
     if event & selectors.EVENT_READ:
-        recv_data = client_sock.recv(1024).decode()
+        recv_data = client_sock.recv(10024).decode()
         if recv_data:
+            print()
+            print("LOADS")
+            print(recv_data)
+            print()
             req = json.loads(recv_data)
             if (req["hdr"] == "pub_key"):
                 resp = None
@@ -146,13 +154,17 @@ def service_connection(key, event):
                     k=req["hdr"].find(":")
                     group_id = req["hdr"][1:k]
                     recip_name = req["hdr"][k+1:]
+                    print()
+                    print("TRYING TO ADD NEW PERSON")
+                    print(f'group_id: {group_id}, recip_name = {recip_name}, MyName = {data.uname}')
+                    print()
                     a=(mycursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.person_name='%s'" %(int(group_id), data.uname))).fetchone()
-                    
+                    print(a[0])
                     if(a[0] == 1):
                         print()
                         print("Added "+recip_name+" to the group "+group_id+" by "+data.uname)
                         print()
-                        mycursor.execute("INSERT INTO groups(group_id,  person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), recip_name, 0))
+                        mycursor.execute("INSERT INTO groups(group_id,  person_name, isAdmin) VALUES(%d, '%s', %d)" %(int(group_id), recip_name, 0))
                         resp=json.dumps({"hdr":"group_added:" + group_id + ":" + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"]})#convert pub_keys to sql
                         total_data[recip_name].append(resp)
                         #resp1=json.dumps({"hdr":"gro", "msg":"ok"})
