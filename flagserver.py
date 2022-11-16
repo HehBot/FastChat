@@ -5,7 +5,7 @@ import types
 import json
 
 import rsa
-from request import verify_onboarding_req, pubkey_to_id, id_to_pubkey
+from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
 
 sel = selectors.DefaultSelector()
 
@@ -39,26 +39,63 @@ sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None
 
 
 total_data = {}
+pub_keys = {}
 
 def accept_wrapper(sock):
     client_sock, client_addr = sock.accept()
     print(f"Accepted connection from client {client_addr}")
     
-    onboarding = client_sock.recv(1024).decode()
-    if (not verify_onboarding_req(onboarding)):
-        sel.unregister(client_sock)
-        client_sock.close()
+    while (True):
+        req_str = client_sock.recv(1024).decode()
+        req = json.loads(req_str)
 
-    onboarding = json.loads(onboarding)
-    cl_id = onboarding["msg"]
-    
-    data = types.SimpleNamespace(addr=client_addr, inb=b"", outb=b"", cl_id=cl_id)
-    events = selectors.EVENT_READ | selectors.EVENT_WRITE
+        if (req["hdr"] == "registering"):
+            if (not verify_registering_req(req_str)):
+                print(f"Rejected attempt from client {client_addr}: Invalid registration request")
+                resp = json.dumps({ "hdr":"error:0", "msg":"Invalid registration request" })
+                client_sock.sendall(resp.encode("utf-8"))
+                continue
+            uname, pub_key = req["msg"].split()
+            if (uname in total_data.keys()):
+                print(f"Rejected attempt from client {client_addr}: User {uname} already registered")
+                resp = json.dumps({ "hdr":"error:1", "msg":f"User {uname} already registered" })
+                client_sock.sendall(resp.encode("utf-8"))
+                continue
+            total_data[uname] = []
+            pub_keys[uname] = pub_key
 
-    if cl_id not in total_data.keys():    
-        total_data[cl_id] = []
-    
-    sel.register(fileobj=client_sock, events=events, data=data)
+            print(f"User {uname} registered")
+            resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
+
+            client_sock.sendall(resp.encode("utf-8"))
+            data = types.SimpleNamespace(addr=client_addr, inb=b"", outb=b"", uname=uname)
+            events = selectors.EVENT_READ | selectors.EVENT_WRITE
+            sel.register(fileobj=client_sock, events=events, data=data)
+            break
+
+        elif (req["hdr"] == "onboarding"):
+            uname = req["msg"]
+            if not uname in total_data.keys():
+                print(f"Rejected attempt from client {client_addr}: User {uname} not registered")
+                resp = json.dumps({ "hdr":"error:2", "msg":f"User {uname} not registered" })
+                client_sock.sendall(resp.encode("utf-8"))
+                continue
+            pub_key = str_to_pub_key(pub_keys[uname])
+            if (not verify_onboarding_req(req_str, pub_key)):
+                print(f"Rejected attempt from client {client_addr}: Invalid onboarding request")
+                resp = json.dumps({ "hdr":"error:3", "msg":"Invalid onboarding request" })
+                client_sock.sendall(resp.encode("utf-8"))
+                client_sock.close()
+                continue
+
+            print(f"User {uname} connected")
+            resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
+
+            client_sock.sendall(resp.encode("utf-8"))
+            data = types.SimpleNamespace(addr=client_addr, inb=b"", outb=b"", uname=uname)
+            events = selectors.EVENT_READ | selectors.EVENT_WRITE
+            sel.register(fileobj=client_sock, events=events, data=data)
+            break
 
 
 def service_connection(key, event):
@@ -67,23 +104,35 @@ def service_connection(key, event):
     if event & selectors.EVENT_READ:
         recv_data = client_sock.recv(1024).decode()
         if recv_data:
-            recip_id = json.loads(recv_data)['hdr'].split('>')[1]
-            if recip_id in total_data.keys():
-                total_data[recip_id].append(recv_data)
-            print()
-            print("Sending " + recv_data + " to " + recip_id)
-            #data.inb += recv_data
+            req = json.loads(recv_data)
+
+            if (req["hdr"] == "pub_key"):
+                resp = None
+                if not req["msg"] in pub_keys.keys():
+                    resp = { "hdr":"error", "msg":f"User {req['msg']} not registered" }
+                else:
+                    resp = { "hdr":"pub_key", "msg":pub_keys[req["msg"]] }
+                total_data[data.uname].append(json.dumps(resp))
+
+            else:
+                recip_uname = req["hdr"][1:]
+                mod_data = json.dumps({ "hdr":data.uname + ':' + pub_keys[data.uname], "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+
+                total_data[recip_uname].append(mod_data)
+                print()
+                print("Sending " + mod_data + " to " + recip_uname)
+                print()
+                #data.inb += recv_data
         else:
             print(f"Closing connection to {data.addr}")
             sel.unregister(client_sock)
             client_sock.close()
         
     if event & selectors.EVENT_WRITE:
-        if len(total_data[data.cl_id])>0:
-            for i in total_data[data.cl_id]:
-                print(f"Sent to {data.cl_id}")
+        if len(total_data[data.uname])>0:
+            for i in total_data[data.uname]:
                 client_sock.send(i.encode())
-            total_data[data.cl_id] = []
+            total_data[data.uname] = []
         
 
 try:
