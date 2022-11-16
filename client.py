@@ -174,6 +174,7 @@ try:
                 msg=grp_name+":"+grp_pub_key+" "+grp_priv_key
 
                 req = { "hdr":"<"+grp_id+":"+recip_uname, "msg":msg, "time": str(time())}
+                req = json.dumps(req)
                 enc_req = encrypt_e2e_req(req, var[0], priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
                 print()
