@@ -17,7 +17,7 @@ client_sock.sendall(str(id).encode())
 
 def listen():
     data = client_sock.recv(1024)
-    print("Recieved:")
+    print("Received:")
     while data:
         print(json.loads(data.decode("UTF-8"))["mssg"])
         data=client_sock.recv(1024)
