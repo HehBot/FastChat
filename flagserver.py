@@ -3,6 +3,7 @@ import socket
 import selectors
 import types
 import json
+import sqlite3
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
@@ -16,6 +17,12 @@ conn_accepting_sock.listen()
 print(f"Listening on {server_addr} as connection accepter of flag server")
 conn_accepting_sock.setblocking(False)
 sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from |conn_accepting_sock|
+
+conn=sqlite3.connect('fastchat.db')
+mycursor = conn.cursor()
+
+mycursor.execute("CREATE TABLE customers (person_name TEXT NOT NULL, public_key TEXT NOT NULL, PRIMARY KEY(person_name))")
+mycursor.execute("CREATE TABLE group (group_id INT NOT NULL, person_name TEXT, isAdmin INT, PRIMARY KEY(group_id, person_name), FOREIGN KEY(person_name) REFERENCES customers(person_name))")
 
 
 # Server List
@@ -97,6 +104,7 @@ def accept_wrapper(sock):
             sel.register(fileobj=client_sock, events=events, data=data)
             break
 
+u = 0
 
 def service_connection(key, event):
     client_sock = key.fileobj
@@ -105,7 +113,6 @@ def service_connection(key, event):
         recv_data = client_sock.recv(1024).decode()
         if recv_data:
             req = json.loads(recv_data)
-
             if (req["hdr"] == "pub_key"):
                 resp = None
                 if not req["msg"] in pub_keys.keys():
@@ -113,16 +120,50 @@ def service_connection(key, event):
                 else:
                     resp = { "hdr":"pub_key", "msg":pub_keys[req["msg"]] }
                 total_data[data.uname].append(json.dumps(resp))
-
-            else:
+            elif (req["hdr"] == "grp_registering"):
+                global u
+                group_id=u
+                mycursor.execute("INSERT INTO group(group_id, person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), data.uname, 0))
+                resp = json.dumps({"hdr":"group_id", "msg":str(u)})
+                client_sock.sendall(resp)
+                u=u+1
+            elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
-                mod_data = json.dumps({ "hdr":data.uname + ':' + pub_keys[data.uname], "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+                mod_data = json.dumps({ "hdr":'>' + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
 
                 total_data[recip_uname].append(mod_data)
                 print()
                 print("Sending " + mod_data + " to " + recip_uname)
                 print()
                 #data.inb += recv_data
+            elif req["hdr"][0] == "<":
+                if ":" in req["hdr"][1:]: #Adding this person to group
+                    k=req["hdr"].find(":")
+                    group_id = req["hdr"][1:k]
+                    recip_name = req["hdr"][k+1:]
+                    a=(mycursor.execute("SELECT group.isAdmin FROM group WHERE group_id=%d" %(int(group_id)))).fetchone()
+                    if(a[0] == 1):
+                        mycursor.execute("INSERT INTO group(group_id,  person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), recip_name, 0))
+                        resp=json.dumps({"hdr":"group_added:" + group_id + ":" + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"]})#convert pub_keys to sql
+                        total_data[recip_name].append(resp)
+                        #resp1=json.dumps({"hdr":"gro", "msg":"ok"})
+                        #client_sock.sendall(resp1)
+
+                    else: #If not admin
+                        TODO
+                else: #Messaging on a group
+                    group_id = req["hdr"][1:]
+                    mod_data = json.dumps({ "hdr":'<' + group_id + ':' + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+                    list_of_names=mycursor.execute("SELECT group.person_name FROM group WHERE group_id=%d" %(group_id)).fetchall()
+                    for recip_uname in list_of_names:
+                        if recip_uname != data.uname:
+                            total_data[recip_uname].append(mod_data)
+                    print()
+                    print("Sending " + mod_data + " to " + group_id)
+                    print()
+
+
+            
         else:
             print(f"Closing connection to {data.addr}")
             sel.unregister(client_sock)
