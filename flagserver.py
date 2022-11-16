@@ -128,6 +128,9 @@ def service_connection(key, event):
                 mycursor.execute("INSERT INTO groups(group_id, person_name, isAdmin) VALUES(%d, '%s', %d)" %(int(group_id), data.uname, 1))
                 resp = json.dumps({"hdr":"group_id", "msg":str(u)})
                 client_sock.sendall(resp.encode("utf-8"))
+                print()
+                print("Registered new group with id "+str(u))
+                print()
                 u=u+1
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
@@ -144,7 +147,11 @@ def service_connection(key, event):
                     group_id = req["hdr"][1:k]
                     recip_name = req["hdr"][k+1:]
                     a=(mycursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.person_name='%s'" %(int(group_id), data.uname))).fetchone()
+                    
                     if(a[0] == 1):
+                        print()
+                        print("Added "+recip_name+" to the group "+group_id+" by "+data.uname)
+                        print()
                         mycursor.execute("INSERT INTO groups(group_id,  person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), recip_name, 0))
                         resp=json.dumps({"hdr":"group_added:" + group_id + ":" + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"]})#convert pub_keys to sql
                         total_data[recip_name].append(resp)
