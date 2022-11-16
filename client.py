@@ -79,9 +79,10 @@ def listen(ls):
             grp_id = req["hdr"].split(':')[1]
             admin_id = req["hdr"].split(":")[2]
             admin_pub_key = str_to_pub_key(req["hdr"].split(':')[3])
-            #sent_data = json.dumps({ "hdr":'<' + grp_id + uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-            sent_data = json.dumps({ "hdr":'<' + grp_id + uname, "msg":req["msg"], "time":req["time"], "sign":req["sign"] })
+            sent_data = json.dumps({ "hdr":'<' + grp_id +':'+ uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+            #sent_data = json.dumps({ "hdr":'<' + grp_id + uname, "msg":req["msg"], "time":req["time"], "sign":req["sign"] })
             msg = decrypt_e2e_req(sent_data, priv_key, admin_pub_key)
+            msg = msg["msg"]
             p = msg.find(':')
             grp_name = msg[:p]
             grp_pub_key,grp_priv_key = msg[p+1:].split(' ')
@@ -199,7 +200,7 @@ try:
                     continue
                 grp_registering_info[1] = False
 
-                grp_info = [grp_registering_info[0],pub_key_to_str(grp_pub_key), priv_key_to_string(grp_priv_key)]
+                grp_info = [grp_registering_info[0],pub_key_to_str(grp_pub_key), priv_key_to_str(grp_priv_key)]
                 cursor.execute("INSERT INTO group_name_id(group_id, group_name, group_pub_key, group_priv_key) VALUES('%s', '%s', '%s', '%s')" %(grp_info[0], grp_name, grp_info[1], grp_info[2])) 
                 print()
                 print("Created new group "+ grp_name+" with id "+grp_info[0])
