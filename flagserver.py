@@ -21,8 +21,10 @@ sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None
 conn=sqlite3.connect('fastchat.db')
 mycursor = conn.cursor()
 
-mycursor.execute("CREATE TABLE customers (person_name TEXT NOT NULL, public_key TEXT NOT NULL, PRIMARY KEY(person_name))")
-mycursor.execute("CREATE TABLE group (group_id INT NOT NULL, person_name TEXT, isAdmin INT, PRIMARY KEY(group_id, person_name), FOREIGN KEY(person_name) REFERENCES customers(person_name))")
+conn.execute("DROP TABLE IF EXISTS customers;")
+conn.execute("CREATE TABLE customers (person_name TEXT NOT NULL, public_key TEXT NOT NULL, PRIMARY KEY(person_name))")
+conn.execute("DROP TABLE IF EXISTS groups ;")
+conn.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, person_name TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, person_name), FOREIGN KEY(person_name) REFERENCES customers(person_name))")
 
 
 # Server List
@@ -120,12 +122,12 @@ def service_connection(key, event):
                 else:
                     resp = { "hdr":"pub_key", "msg":pub_keys[req["msg"]] }
                 total_data[data.uname].append(json.dumps(resp))
-            elif (req["hdr"] == "grp_registering"):
+            elif (req["hdr"] == "grp_registering"): #Creating group
                 global u
                 group_id=u
-                mycursor.execute("INSERT INTO group(group_id, person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), data.uname, 0))
+                mycursor.execute("INSERT INTO groups(group_id, person_name, isAdmin) VALUES(%d, '%s', %d)" %(int(group_id), data.uname, 1))
                 resp = json.dumps({"hdr":"group_id", "msg":str(u)})
-                client_sock.sendall(resp)
+                client_sock.sendall(resp.encode("utf-8"))
                 u=u+1
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
@@ -141,9 +143,9 @@ def service_connection(key, event):
                     k=req["hdr"].find(":")
                     group_id = req["hdr"][1:k]
                     recip_name = req["hdr"][k+1:]
-                    a=(mycursor.execute("SELECT group.isAdmin FROM group WHERE group_id=%d" %(int(group_id)))).fetchone()
+                    a=(mycursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.person_name='%s'" %(int(group_id), data.uname))).fetchone()
                     if(a[0] == 1):
-                        mycursor.execute("INSERT INTO group(group_id,  person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), recip_name, 0))
+                        mycursor.execute("INSERT INTO groups(group_id,  person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), recip_name, 0))
                         resp=json.dumps({"hdr":"group_added:" + group_id + ":" + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"]})#convert pub_keys to sql
                         total_data[recip_name].append(resp)
                         #resp1=json.dumps({"hdr":"gro", "msg":"ok"})
@@ -154,10 +156,10 @@ def service_connection(key, event):
                 else: #Messaging on a group
                     group_id = req["hdr"][1:]
                     mod_data = json.dumps({ "hdr":'<' + group_id + ':' + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-                    list_of_names=mycursor.execute("SELECT group.person_name FROM group WHERE group_id=%d" %(group_id)).fetchall()
+                    list_of_names=mycursor.execute("SELECT groups.person_name FROM groups WHERE group_id=%d" %(group_id)).fetchall()
                     for recip_uname in list_of_names:
-                        if recip_uname != data.uname:
-                            total_data[recip_uname].append(mod_data)
+                        if recip_uname[0] != data.uname:
+                            total_data[recip_uname[0]].append(mod_data)
                     print()
                     print("Sending " + mod_data + " to " + group_id)
                     print()
@@ -189,3 +191,5 @@ except KeyboardInterrupt:
 finally:
     sel.close()
     conn_accepting_sock.close()
+conn.commit()
+conn.close()
