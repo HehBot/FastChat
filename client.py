@@ -77,7 +77,7 @@ def listen(ls):
         elif req["hdr"][:11] == "group_added":
             grp_id = req["hdr"].split(':')[1]
             admin_id = req["hdr"].split(":")[2]
-            admin_pub_key = req["hdr"].split(':')[3]
+            admin_pub_key = str_to_pub_key(req["hdr"].split(':')[3])
             sent_data = json.dumps({ "hdr":'<' + group_id + uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
             msg = decrypt_e2e_req(sent_data, priv_key, admin_pub_key)
             p = msg.find(':')
@@ -114,7 +114,7 @@ def listen(ls):
             sender_pub_key = x.split(':')[2]
             sent_data = json.dumps({ "hdr":'<' + group_id, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
             a=cursor.execute("SELECT group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_id = '%s'" %(group_id)).fetchall()
-            msg = decrypt_e2e_req(sent_data,a[0][0],sender_pub_key)
+            msg = decrypt_e2e_req(sent_data,str_to_priv_key(a[0][0]),str_to_pub_key(sender_pub_key))
 
             print()
             print(f"Received on from {sender_id}:")            
@@ -140,8 +140,8 @@ try:
             grp_name=x[0:u]
             a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name ='%s'" %(grp_name)).fetchall()
             grp_id = a[0][0]
-            grp_pub_key = a[0][1]
-            grp_priv_key = a[0][2]
+            grp_pub_key = str_to_pub_key(a[0][1])
+            grp_priv_key = str_to_priv_key(a[0][2])
             msg = x[u+1:]
             req = { "hdr":"<"+grp_id, "msg":msg, "time": str(time())}
             enc_req = encrypt_e2e_req(req, grp_pub_key, priv_key)
@@ -174,8 +174,7 @@ try:
                 msg=grp_name+":"+grp_pub_key+" "+grp_priv_key
 
                 req = { "hdr":"<"+grp_id+":"+recip_uname, "msg":msg, "time": str(time())}
-                req = json.dumps(req)
-                enc_req = encrypt_e2e_req(req, var[0], priv_key)
+                enc_req = encrypt_e2e_req(req, str_to_pub_key(var[0]), priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
                 print()
                 print("Added "+ recip_uname +" to the group "+ grp_name)
@@ -223,10 +222,12 @@ try:
             msg = x[u+1:]
             req = { "hdr":hdr, "msg":msg, "time": str(time())}
 
-            enc_req = encrypt_e2e_req(req, var[0], priv_key)
+            enc_req = encrypt_e2e_req(req, str_to_pub_key(var[0]), priv_key)
             client_sock.sendall(enc_req.encode("utf-8"))
 except KeyboardInterrupt:
     print("Caught keyboard interrupt, closing")
     client_sock.close()
 conn.commit()
 conn.close()
+
+#os.remove()
