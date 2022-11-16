@@ -73,6 +73,7 @@ def accept_wrapper(sock):
                 print(f"Rejected attempt from client {client_addr}: User {uname} already registered")
                 resp = json.dumps({ "hdr":"error:1", "msg":f"User {uname} already registered" })
                 client_sock.sendall(resp.encode("utf-8"))
+
                 continue
             total_data[uname] = []
             pub_keys[uname] = pub_key
@@ -165,7 +166,7 @@ def service_connection(key, event):
                         print("Added "+recip_name+" to the group "+group_id+" by "+data.uname)
                         print()
                         mycursor.execute("INSERT INTO groups(group_id,  person_name, isAdmin) VALUES(%d, '%s', %d)" %(int(group_id), recip_name, 0))
-                        resp=json.dumps({"hdr":"group_added:" + group_id + ":" + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"]})#convert pub_keys to sql
+                        resp=json.dumps({"hdr":"group_added:" + group_id + ":" + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})#convert pub_keys to sql
                         total_data[recip_name].append(resp)
                         #resp1=json.dumps({"hdr":"gro", "msg":"ok"})
                         #client_sock.sendall(resp1)

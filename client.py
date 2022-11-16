@@ -5,6 +5,7 @@ import threading
 import rsa
 import sqlite3
 from time import time, strftime, localtime
+import os
 
 from request import *
 
@@ -62,7 +63,7 @@ grp_registering_info = [None,False] # Group_id, is Group id set
 
 def listen(ls):
     while(True):
-        data = client_sock.recv(1024).decode('utf-8')
+        data = client_sock.recv(10024).decode('utf-8')
         req = json.loads(data)
 
         if req["hdr"] == "pub_key":
@@ -78,7 +79,8 @@ def listen(ls):
             grp_id = req["hdr"].split(':')[1]
             admin_id = req["hdr"].split(":")[2]
             admin_pub_key = str_to_pub_key(req["hdr"].split(':')[3])
-            sent_data = json.dumps({ "hdr":'<' + group_id + uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+            #sent_data = json.dumps({ "hdr":'<' + grp_id + uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+            sent_data = json.dumps({ "hdr":'<' + grp_id + uname, "msg":req["msg"], "time":req["time"], "sign":req["sign"] })
             msg = decrypt_e2e_req(sent_data, priv_key, admin_pub_key)
             p = msg.find(':')
             grp_name = msg[:p]
@@ -140,6 +142,7 @@ try:
             grp_name=x[0:u]
             a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name ='%s'" %(grp_name)).fetchall()
             grp_id = a[0][0]
+            print(f'Private key is {a[0][1]}')
             grp_pub_key = str_to_pub_key(a[0][1])
             grp_priv_key = str_to_priv_key(a[0][2])
             msg = x[u+1:]
@@ -159,7 +162,7 @@ try:
                 grp_priv_key = a[0][2]
                 recip_uname = x[u+1:]
 
-                pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname })
+                pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname,"time": str(time()) })
                 client_sock.sendall(pub_key_req.encode("utf-8"))
 
                 while (not var[1]):
@@ -174,7 +177,7 @@ try:
                 msg=grp_name+":"+grp_pub_key+" "+grp_priv_key
 
                 req = { "hdr":"<"+grp_id+":"+recip_uname, "msg":msg, "time": str(time())}
-                enc_req = encrypt_e2e_req(req, str_to_pub_key(var[0]), priv_key)
+                enc_req = encrypt_e2e_req(req, var[0], priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
                 print()
                 print("Added "+ recip_uname +" to the group "+ grp_name)
@@ -196,7 +199,7 @@ try:
                     continue
                 grp_registering_info[1] = False
 
-                grp_info = [grp_registering_info[0],grp_pub_key, grp_priv_key]
+                grp_info = [grp_registering_info[0],pub_key_to_str(grp_pub_key), priv_key_to_string(grp_priv_key)]
                 cursor.execute("INSERT INTO group_name_id(group_id, group_name, group_pub_key, group_priv_key) VALUES('%s', '%s', '%s', '%s')" %(grp_info[0], grp_name, grp_info[1], grp_info[2])) 
                 print()
                 print("Created new group "+ grp_name+" with id "+grp_info[0])
@@ -222,7 +225,7 @@ try:
             msg = x[u+1:]
             req = { "hdr":hdr, "msg":msg, "time": str(time())}
 
-            enc_req = encrypt_e2e_req(req, str_to_pub_key(var[0]), priv_key)
+            enc_req = encrypt_e2e_req(req, var[0], priv_key)
             client_sock.sendall(enc_req.encode("utf-8"))
 except KeyboardInterrupt:
     print("Caught keyboard interrupt, closing")
@@ -230,4 +233,4 @@ except KeyboardInterrupt:
 conn.commit()
 conn.close()
 
-#os.remove()
+os.remove("local.key")
