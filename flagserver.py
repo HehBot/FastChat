@@ -122,12 +122,12 @@ def service_connection(key, event):
                 else:
                     resp = { "hdr":"pub_key", "msg":pub_keys[req["msg"]] }
                 total_data[data.uname].append(json.dumps(resp))
-            elif (req["hdr"] == "grp_registering"):
+            elif (req["hdr"] == "grp_registering"): #Creating group
                 global u
                 group_id=u
                 mycursor.execute("INSERT INTO groups(group_id, person_name, isAdmin) VALUES(%d, %s, %d)" %(int(group_id), data.uname, 1))
                 resp = json.dumps({"hdr":"group_id", "msg":str(u)})
-                client_sock.sendall(resp)
+                client_sock.sendall(resp.encode("utf-8"))
                 u=u+1
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
