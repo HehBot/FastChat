@@ -22,6 +22,8 @@ client_sock.connect(server_addr)
 
 uname, pub_key, priv_key = None, None, None
 
+grp_name_to_id={} ## grp_name : [grp_id, grp_pub_key, grp_private_key]
+
 if keyfile == None:
     pub_key, priv_key = rsa.newkeys(512)
     while (True):
@@ -51,6 +53,7 @@ else:
     print(resp["msg"])
 
 var = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
+grp_registering_info = [None,False] # Group_id, is Group id set
 
 def listen(ls):
     while(True):
@@ -61,11 +64,16 @@ def listen(ls):
             ls[0] = str_to_pub_key(req["msg"])
             ls[1] = True
             ls[2] = False
+        elif req["hdr"][:11] == "group_added":
+            grp_id = req["hdr"].split(':')[1]
+            admin_pub_key = req["hdr"].split(':')[2]
+            
+
         elif req["hdr"] == "error":
             ls[1] = True
             ls[2] = True
-        else:
-            sndr_uname, sndr_pub_key = req["hdr"].split(':')
+        elif req["hdr"][0]=='>':
+            sndr_uname, sndr_pub_key = req["hdr"][1:].split(':')
             sndr_pub_key = str_to_pub_key(sndr_pub_key)
             sent_data = json.dumps({ "hdr":'>' + uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
             msg = decrypt_e2e_req(sent_data, priv_key, sndr_pub_key)
@@ -76,6 +84,24 @@ def listen(ls):
             print("\t" + msg["msg"])
             print()
 
+        # grp msg 
+        elif req["hdr"][0] == '<':
+            x = req["hdr"][1:]
+            group_id = x.split(':')[0]
+            sender_id = x.split(':')[1]
+            sender_pub_key = x.split(':')[2]
+            sent_data = json.dumps({ "hdr":'<' + group_id, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+            msg = decrypt_e2e_req(sent_data,priv_key,sender_pub_key)
+
+            print()
+            print(f"Recieved on  from {sender_id}:")            
+            print(strftime("%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
+            print()
+            print("\t" + msg["msg"])
+            print()
+            TODO
+
+
 t1 = threading.Thread(target=listen, args=(var,))
 t1.daemon = True
 t1.start()
@@ -84,28 +110,84 @@ try:
     while True:
         x = input()
 
-        u = x.find(':')
-        recip_uname = x[:u]
+        # Grp_messasing
+        if x[0]==':':
+            x = x[1:]
+            u = x.find(':')
+            grp_id = grp_name_to_id[x[0:u]]
+            msg = x[u+1:]
+            req = { "hdr":"<"+grp_id, "msg":msg, "time": str(time())}
+            enc_req = encrypt_e2e_req(req, var[0], priv_key)
+            client_sock.sendall(enc_req.encode("utf-8"))
 
-        pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname })
-        client_sock.sendall(pub_key_req.encode("utf-8"))
+        elif x[0]=='$':
+            # Adding people in the group 
+            if ':' in x:
+                x = x[1:]
+                u = x.find(':')
+                grp_id = grp_name_to_id[x[0:u]][0]
+                
+                recip_uname = x[u+1:]
 
-        while (not var[1]):
-            continue
-        var[1] = False
+                pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname })
+                client_sock.sendall(pub_key_req.encode("utf-8"))
 
-        if var[2]:
-            print(f"User {recip_uname} not registered")
-            var[2] = False
-            continue
+                while (not var[1]):
+                    continue
+                var[1] = False
 
-        hdr = '>' + recip_uname
+                if var[2]:
+                    print(f"User {recip_uname} not registered")
+                    var[2] = False
+                    continue
 
-        msg = x[u+1:]
-        req = { "hdr":hdr, "msg":msg, "time": str(time())}
+                msg=grp_name_to_id[x[0:u]][1]+grp_name_to_id[x[0:u]][2]
 
-        enc_req = encrypt_e2e_req(req, var[0], priv_key)
-        client_sock.sendall(enc_req.encode("utf-8"))
+                req = { "hdr":"<"+grp_id+":"+recip_uname, "msg":msg, "time": str(time())}
+                enc_req = encrypt_e2e_req(req, var[0], priv_key)
+                client_sock.sendall(enc_req.encode("utf-8"))
+
+            else :
+                grp_name = x[1:]
+
+                grp_pub_key, grp_priv_key = rsa.newkeys(512)
+ 
+                # May need to change encyrption here
+                req = { "hdr":"grp_registering", "msg":msg, "time": str(time())}
+                enc_req = encrypt_e2e_req(req, grp_pub_key, grp_priv_key)
+                client_sock.sendall(enc_req.encode("utf-8"))
+
+                while (not grp_registering_info[0]):
+                    continue
+                grp_registering_info[0] = False
+
+                grp_info = [grp_registering_info[1],grp_pub_key, grp_priv_key]
+
+                grp_name_to_id[grp_name] = grp_info
+                
+        else: 
+            u = x.find(':')
+            recip_uname = x[:u]
+
+            pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname })
+            client_sock.sendall(pub_key_req.encode("utf-8"))
+
+            while (not var[1]):
+                continue
+            var[1] = False
+
+            if var[2]:
+                print(f"User {recip_uname} not registered")
+                var[2] = False
+                continue
+
+            hdr = '>' + recip_uname
+
+            msg = x[u+1:]
+            req = { "hdr":hdr, "msg":msg, "time": str(time())}
+
+            enc_req = encrypt_e2e_req(req, var[0], priv_key)
+            client_sock.sendall(enc_req.encode("utf-8"))
 except KeyboardInterrupt:
     print("Caught keyboard interrupt, closing")
     client_sock.close()
