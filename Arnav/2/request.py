@@ -25,7 +25,7 @@ class AESCipher(object):
     def _unpad(s):
         return s[:-ord(s[len(s)-1:])]
 
-def encrypt(req, recip_pub_key, sndr_priv_key, aes_key_len=128):
+def encrypt_e2e_req(req, recip_pub_key, sndr_priv_key, aes_key_len=128):
     msg = req["msg"]
     time = req["time"]
 
@@ -43,7 +43,7 @@ def encrypt(req, recip_pub_key, sndr_priv_key, aes_key_len=128):
     
     return x
 
-def decrypt(json_string, recip_priv_key, sndr_pub_key):
+def decrypt_e2e_req(json_string, recip_priv_key, sndr_pub_key):
     req = json.loads(json_string)
     
     try:
@@ -60,19 +60,41 @@ def decrypt(json_string, recip_priv_key, sndr_pub_key):
 
     return { "hdr":req["hdr"], "msg":msg, "time":time }
 
+def create_onboarding_req(sndr_pub_key, sndr_priv_key):
+    hdr = "onboarding"
+    msg = str(getattr(sndr_pub_key, "n")) + ' ' + str(getattr(sndr_pub_key, "e"))
+    sign = base64.b64encode(rsa.sign(msg.encode('utf-8'), sndr_priv_key, 'SHA-1')).decode('utf-8')
+    return json.dumps({ "hdr":hdr, "msg":msg, "sign":sign })
+
+def verify_onboarding_req(json_string):
+    req = json.loads(json_string)
+    print(req)
+    pub_key = req["msg"].split()
+    pub_key = rsa.PublicKey(int(pub_key[0]), int(pub_key[1]))
+    try:
+        rsa.verify(req["msg"].encode('utf-8'), base64.b64decode(req["sign"]), pub_key)
+    except rsa.pkcs1.VerificationError:
+        print("Signature mismatch")
+        return False
+    return True
+
+# e2e test
 (A_pub_key, A_priv_key) = rsa.newkeys(512)
 (B_pub_key, B_priv_key) = rsa.newkeys(512)
 
 req = { "hdr":"insert header", "msg":"insert message", "time":"109" }
-
-enc_req = encrypt(req, B_pub_key, A_priv_key)
+enc_req = encrypt_e2e_req(req, B_pub_key, A_priv_key)
 
 print(req)
 print(enc_req)
-print(decrypt(enc_req, B_priv_key, A_pub_key))
+print(decrypt_e2e_req(enc_req, B_priv_key, A_pub_key))
 
 """
 mangled_enc_req = enc_req[:-5] + 'T' + enc_req[-4:]
 print(mangled_enc_req)
 print(decrypt(mangled_enc_req, B_priv_key, A_pub_key))
 """
+# onboarding test
+x = create_onboarding_req(A_pub_key, A_priv_key)
+print(x)
+print(verify_onboarding_req(x))
