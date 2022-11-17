@@ -116,16 +116,15 @@ def listen(ls):
             sender_id = x.split(':')[1]
             sender_pub_key = x.split(':')[2]
             sent_data = json.dumps({ "hdr":'<' + group_id, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-            a=cursor.execute("SELECT group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_id = '%s'" %(group_id)).fetchall()
+            a=cursor.execute("SELECT group_name_id.group_priv_key, group_name_id.group_name FROM group_name_id WHERE group_name_id.group_id = '%s'" %(group_id)).fetchall()
             msg = decrypt_e2e_req(sent_data,str_to_priv_key(a[0][0]),str_to_pub_key(sender_pub_key))
-
+            grp_name = a[0][1]
             print()
-            print(f"Received on from {sender_id}:")            
+            print(f"Received on {grp_name} from {sender_id}:")            
             print(strftime("%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
             print()
             print("\t" + msg["msg"])
             print()
-            TODO
 
 
 t1 = threading.Thread(target=listen, args=(var,))
