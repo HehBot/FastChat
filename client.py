@@ -142,7 +142,6 @@ try:
             grp_name=x[0:u]
             a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name ='%s'" %(grp_name)).fetchall()
             grp_id = a[0][0]
-            print(f'Private key is {a[0][1]}')
             grp_pub_key = str_to_pub_key(a[0][1])
             grp_priv_key = str_to_priv_key(a[0][2])
             msg = x[u+1:]
