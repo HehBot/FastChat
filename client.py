@@ -14,8 +14,8 @@ server_addr = (argv[1], int(argv[2]))
 conn=sqlite3.connect('fastchatclient.db')
 cursor=conn.cursor()
 
-conn.execute("DROP TABLE IF EXISTS grp_name_id;")
-conn.execute("CREATE TABLE grp_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
+conn.execute("DROP TABLE IF EXISTS group_name_id;")
+conn.execute("CREATE TABLE group_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
 keyfile = None
 try:
     keyfile = open("local.key", 'r')
@@ -85,7 +85,7 @@ def listen(ls):
             grp_pub_key,grp_priv_key = msg[p+1:].split(' ')
 
             grp_info = [grp_id,grp_pub_key, grp_priv_key]
-            cursor.execute("INSERT INTO group_name_id(group_id, group_name, group_pub_key, group_priv_key) VALUES(%s, %s, %s, %s)" %(grp_info[0], grp_name, grp_info[1], grp_info[2]))
+            cursor.execute("INSERT INTO group_name_id(group_id, group_name, group_pub_key, group_priv_key) VALUES('%s', '%s', '%s', '%s')" %(grp_info[0], grp_name, grp_info[1], grp_info[2]))
             print()
             print("You have been added to " + grp_name + " by "+admin_id)
             print()
@@ -113,7 +113,7 @@ def listen(ls):
             sender_id = x.split(':')[1]
             sender_pub_key = x.split(':')[2]
             sent_data = json.dumps({ "hdr":'<' + group_id, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-            a=cursor.execute("SELECT group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_id = %s" %(group_id)).fetchall()
+            a=cursor.execute("SELECT group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_id = '%s'" %(group_id)).fetchall()
             msg = decrypt_e2e_req(sent_data,a[0][0],sender_pub_key)
 
             print()
@@ -133,12 +133,12 @@ try:
     while True:
         x = input()
 
-        # Grp_messasing
+        # Grp_messaging
         if x[0]==':':
             x = x[1:]
             u = x.find(':')
             grp_name=x[0:u]
-            a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name = %s" %(grp_name)).fetchall()
+            a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name ='%s'" %(grp_name)).fetchall()
             grp_id = a[0][0]
             grp_pub_key = a[0][1]
             grp_priv_key = a[0][2]
@@ -153,7 +153,7 @@ try:
                 x = x[1:]
                 u = x.find(':')
                 grp_name=x[0:u]
-                a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name = %s" %(grp_name)).fetchall()
+                a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name = '%s'" %(grp_name)).fetchall()
                 grp_id = a[0][0]
                 grp_pub_key = a[0][1]
                 grp_priv_key = a[0][2]
@@ -176,6 +176,9 @@ try:
                 req = { "hdr":"<"+grp_id+":"+recip_uname, "msg":msg, "time": str(time())}
                 enc_req = encrypt_e2e_req(req, var[0], priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
+                print()
+                print("Added"+ recip_uname +" to the group "+ grp_name)
+                print()
 
             else :
                 #Creating new group
@@ -194,7 +197,10 @@ try:
                 grp_registering_info[1] = False
 
                 grp_info = [grp_registering_info[0],grp_pub_key, grp_priv_key]
-                cursor.execute("INSERT INTO group_name_id(group_id, group_name, group_pub_key, group_priv_key) VALUES(%s, %s, %s, %s)" %(grp_info[0], grp_name, grp_info[1], grp_info[2]))                
+                cursor.execute("INSERT INTO group_name_id(group_id, group_name, group_pub_key, group_priv_key) VALUES('%s', '%s', '%s', '%s')" %(grp_info[0], grp_name, grp_info[1], grp_info[2])) 
+                print()
+                print("Created new group "+ grp_name+" with id "+grp_info[0])
+                print()               
         else: 
             u = x.find(':')
             recip_uname = x[:u]
