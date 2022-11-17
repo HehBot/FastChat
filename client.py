@@ -12,16 +12,11 @@ from request import *
 if len(argv) < 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
 server_addr = (argv[1], int(argv[2]))
-conn=sqlite3.connect('fastchatclient.db',check_same_thread=False)
-cursor=conn.cursor()
 
-conn.execute("DROP TABLE IF EXISTS group_name_id;")
-conn.execute("CREATE TABLE group_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
 keyfile = None
-try:
-    keyfile = open("local.key", 'r')
-except:
-    keyfile = None
+if len(argv)>3:
+    keyfile = open(argv[3], 'r')
+
 
 client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 client_sock.connect(server_addr)
@@ -44,7 +39,7 @@ if keyfile == None:
             continue
         elif (resp["hdr"] == "registered"):
             break
-    keyfile = open("local.key", 'w')
+    keyfile = open(uname+".key", 'w')
     keyfile.write(uname + ' ' + pub_key_to_str(pub_key) + ' ' + priv_key_to_str(priv_key))
     keyfile.close()
 else:
@@ -57,6 +52,14 @@ else:
     resp = json.loads(client_sock.recv(1024).decode())
 
     print(resp["msg"])
+
+conn=sqlite3.connect(uname+'fastchatclient.db',check_same_thread=False)
+cursor=conn.cursor()
+
+conn.execute("DROP TABLE IF EXISTS group_name_id;")
+conn.execute("CREATE TABLE group_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
+
+
 
 var = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
 grp_registering_info = [None,False] # Group_id, is Group id set
