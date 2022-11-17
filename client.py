@@ -12,7 +12,7 @@ from request import *
 if len(argv) < 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
 server_addr = (argv[1], int(argv[2]))
-conn=sqlite3.connect('fastchatclient.db')
+conn=sqlite3.connect('fastchatclient.db',check_same_thread=False)
 cursor=conn.cursor()
 
 conn.execute("DROP TABLE IF EXISTS group_name_id;")
