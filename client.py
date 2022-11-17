@@ -100,7 +100,7 @@ def listen(ls):
             msg = decrypt_e2e_req(sent_data, priv_key, sndr_pub_key)
 
             print()
-            print(f"Recieved from {sndr_uname}:")            
+            print(f"Received from {sndr_uname}:")            
             print(strftime("%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
             print()
             print("\t" + msg["msg"])
@@ -117,7 +117,7 @@ def listen(ls):
             msg = decrypt_e2e_req(sent_data,a[0][0],sender_pub_key)
 
             print()
-            print(f"Recieved on  from {sender_id}:")            
+            print(f"Received on from {sender_id}:")            
             print(strftime("%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
             print()
             print("\t" + msg["msg"])
@@ -177,7 +177,7 @@ try:
                 enc_req = encrypt_e2e_req(req, var[0], priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
                 print()
-                print("Added"+ recip_uname +" to the group "+ grp_name)
+                print("Added "+ recip_uname +" to the group "+ grp_name)
                 print()
 
             else :
