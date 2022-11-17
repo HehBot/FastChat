@@ -12,11 +12,9 @@ from request import *
 if len(argv) < 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
 server_addr = (argv[1], int(argv[2]))
-conn=sqlite3.connect('fastchatclient.db',check_same_thread=False)
-cursor=conn.cursor()
+conn = sqlite3.connect('fastchatclient.db',check_same_thread=False)
+cursor = conn.cursor()
 
-conn.execute("DROP TABLE IF EXISTS group_name_id;")
-conn.execute("CREATE TABLE group_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
 keyfile = None
 try:
     keyfile = open("local.key", 'r')
@@ -31,6 +29,8 @@ uname, pub_key, priv_key = None, None, None
 grp_name_to_id={} ## grp_name : [grp_id, grp_pub_key, grp_private_key]
 
 if keyfile == None:
+    conn.execute("DROP TABLE IF EXISTS group_name_id;")
+    conn.execute("CREATE TABLE group_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
     pub_key, priv_key = rsa.newkeys(512)
     while (True):
         uname = input("Enter username: ")
@@ -59,7 +59,7 @@ else:
     print(resp["msg"])
 
 var = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
-grp_registering_info = [None,False] # Group_id, is Group id set
+grp_registering_info = [None, False] # Group_id, is Group id set
 
 def listen(ls):
     while(True):
@@ -116,16 +116,15 @@ def listen(ls):
             sender_id = x.split(':')[1]
             sender_pub_key = x.split(':')[2]
             sent_data = json.dumps({ "hdr":'<' + group_id, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-            a=cursor.execute("SELECT group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_id = '%s'" %(group_id)).fetchall()
+            a=cursor.execute("SELECT group_name_id.group_priv_key, group_name_id.group_name FROM group_name_id WHERE group_name_id.group_id = '%s'" %(group_id)).fetchall()
             msg = decrypt_e2e_req(sent_data,str_to_priv_key(a[0][0]),str_to_pub_key(sender_pub_key))
-
+            grp_name = a[0][1]
             print()
-            print(f"Received on from {sender_id}:")            
+            print(f"Received on {grp_name} from {sender_id}:")            
             print(strftime("%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
             print()
             print("\t" + msg["msg"])
             print()
-            TODO
 
 
 t1 = threading.Thread(target=listen, args=(var,))
@@ -143,7 +142,6 @@ try:
             grp_name=x[0:u]
             a=cursor.execute("SELECT group_name_id.group_id, group_name_id.group_pub_key, group_name_id.group_priv_key FROM group_name_id WHERE group_name_id.group_name ='%s'" %(grp_name)).fetchall()
             grp_id = a[0][0]
-            print(f'Private key is {a[0][1]}')
             grp_pub_key = str_to_pub_key(a[0][1])
             grp_priv_key = str_to_priv_key(a[0][2])
             msg = x[u+1:]
@@ -233,5 +231,3 @@ except KeyboardInterrupt:
     client_sock.close()
 conn.commit()
 conn.close()
-
-os.remove("local.key")

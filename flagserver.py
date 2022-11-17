@@ -176,7 +176,7 @@ def service_connection(key, event):
                 else: #Messaging on a group
                     group_id = req["hdr"][1:]
                     mod_data = json.dumps({ "hdr":'<' + group_id + ':' + data.uname + ':' + pub_keys[data.uname], "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-                    list_of_names=mycursor.execute("SELECT groups.person_name FROM groups WHERE group_id=%d" %(group_id)).fetchall()
+                    list_of_names=mycursor.execute("SELECT groups.person_name FROM groups WHERE group_id=%d" %(int(group_id))).fetchall()
                     for recip_uname in list_of_names:
                         if recip_uname[0] != data.uname:
                             total_data[recip_uname[0]].append(mod_data)
