@@ -26,7 +26,7 @@ client_sock.connect(server_addr)
 
 uname, pub_key, priv_key = None, None, None
 
-grp_name_to_id={} ## grp_name : [grp_id, grp_pub_key, grp_private_key]
+grp_name_to_id = {} ## grp_name : [grp_id, grp_pub_key, grp_private_key]
 
 if keyfile == None:
     conn.execute("DROP TABLE IF EXISTS group_name_id;")
@@ -61,9 +61,27 @@ else:
 var = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
 grp_registering_info = [None, False] # Group_id, is Group id set
 
+input_buffer = ""
+
 def listen(ls):
     while(True):
-        data = client_sock.recv(10024).decode('utf-8')
+        input_buffer += client_sock.recv(1024).decode('utf-8')
+
+        n = 0
+        i = 0
+        while i < len(input_buffer):
+            if input_buffer[i] == '}' and n%2 == 0:
+                break
+            if input_buffer[i] == '"' and input_buffer[i - 1] != '\\':
+                n += 1
+            i += 1
+
+        if i == len(input_buffer):
+            continue
+
+        data = input_buffer[:i + 1]
+        input_buffer = input_buffer[i + 1:]
+
         req = json.loads(data)
 
         if req["hdr"] == "pub_key":
@@ -96,6 +114,7 @@ def listen(ls):
         elif req["hdr"] == "error":
             ls[1] = True
             ls[2] = True
+
         elif req["hdr"][0]=='>':
             sndr_uname, sndr_pub_key = req["hdr"][1:].split(':')
             sndr_pub_key = str_to_pub_key(sndr_pub_key)
