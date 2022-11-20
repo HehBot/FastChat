@@ -69,14 +69,14 @@ def listen(ls):
 
         n = 0
         i = 0
-        while (i < len(input_buffer)):
-            if (input_buffer[i] == '}' && n%2 == 0):
+        while i < len(input_buffer):
+            if input_buffer[i] == '}' and n%2 == 0:
                 break
-            if (input_buffer[i] == '"' && input_buffer[i - 1] != '\\'):
-                n++
-            i++
+            if input_buffer[i] == '"' and input_buffer[i - 1] != '\\':
+                n += 1
+            i += 1
 
-        if (i == len(input_buffer)):
+        if i == len(input_buffer):
             continue
 
         data = input_buffer[:i + 1]
