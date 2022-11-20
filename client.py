@@ -12,11 +12,9 @@ from request import *
 if len(argv) < 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
 server_addr = (argv[1], int(argv[2]))
-conn=sqlite3.connect('fastchatclient.db',check_same_thread=False)
-cursor=conn.cursor()
+conn = sqlite3.connect('fastchatclient.db',check_same_thread=False)
+cursor = conn.cursor()
 
-conn.execute("DROP TABLE IF EXISTS group_name_id;")
-conn.execute("CREATE TABLE group_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
 keyfile = None
 try:
     keyfile = open("local.key", 'r')
@@ -31,6 +29,8 @@ uname, pub_key, priv_key = None, None, None
 grp_name_to_id={} ## grp_name : [grp_id, grp_pub_key, grp_private_key]
 
 if keyfile == None:
+    conn.execute("DROP TABLE IF EXISTS group_name_id;")
+    conn.execute("CREATE TABLE group_name_id (group_id TEXT NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")#May need to change group id to int
     pub_key, priv_key = rsa.newkeys(512)
     while (True):
         uname = input("Enter username: ")
@@ -59,7 +59,7 @@ else:
     print(resp["msg"])
 
 var = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
-grp_registering_info = [None,False] # Group_id, is Group id set
+grp_registering_info = [None, False] # Group_id, is Group id set
 
 def listen(ls):
     while(True):
