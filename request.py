@@ -88,10 +88,10 @@ def decrypt_e2e_req(json_string, recip_priv_key, sndr_pub_key):
 
     return { "hdr":req["hdr"], "msg":msg, "time":time }
 
-def create_onboarding_req(uname, sndr_pub_key, sndr_priv_key):
+def create_onboarding_req(uname, time, sndr_pub_key, sndr_priv_key):
     hdr = "onboarding"
     
-    msg = uname
+    msg = uname + ' ' + str(time)
     sign = base64.b64encode(rsa.sign((hdr + msg).encode("utf-8"), sndr_priv_key, "SHA-256")).decode("utf-8")
 
     return json.dumps({ "hdr":hdr, "msg":msg, "sign":sign })
@@ -106,10 +106,10 @@ def verify_onboarding_req(json_string, pub_key):
         return False
     return True
 
-def create_registering_req(uname, sndr_pub_key, sndr_priv_key):
+def create_registering_req(uname, time, sndr_pub_key, sndr_priv_key):
     hdr = "registering"
 
-    msg = uname + ' ' + pub_key_to_str(sndr_pub_key)
+    msg = uname + ' ' + pub_key_to_str(sndr_pub_key) + ' ' + str(time)
     sign = base64.b64encode(rsa.sign((hdr + msg).encode("utf-8"), sndr_priv_key, "SHA-256")).decode("utf-8")
 
     return json.dumps({ "hdr":hdr, "msg":msg, "sign":sign })
