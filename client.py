@@ -61,9 +61,10 @@ else:
 var = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
 grp_registering_info = [None, False] # Group_id, is Group id set
 
-input_buffer = ""
+
 
 def listen(ls):
+    input_buffer = ""
     while(True):
         input_buffer += client_sock.recv(1024).decode('utf-8')
 
