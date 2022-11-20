@@ -73,7 +73,6 @@ def accept_wrapper(sock):
                 print(f"Rejected attempt from client {client_addr}: User {uname} already registered")
                 resp = json.dumps({ "hdr":"error:1", "msg":f"User {uname} already registered" })
                 client_sock.sendall(resp.encode("utf-8"))
-
                 continue
             total_data[uname] = []
             pub_keys[uname] = pub_key

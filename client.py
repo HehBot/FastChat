@@ -234,5 +234,3 @@ except KeyboardInterrupt:
     client_sock.close()
 conn.commit()
 conn.close()
-
-os.remove("local.key")
