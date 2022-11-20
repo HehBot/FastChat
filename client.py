@@ -107,8 +107,8 @@ def listen():
                 print()
 
             elif req["hdr"] == "error":
-                ls[1] = True
-                ls[2] = True
+                pub_key_info[1] = True
+                pub_key_info[2] = True
 
             elif req["hdr"][0]=='>':
                 sndr_uname, sndr_pub_key = req["hdr"][1:].split(':')
@@ -222,10 +222,11 @@ try:
                     continue
                 grp_registering_info[1] = False
 
-                grp_info = [grp_registering_info[0],pub_key_to_str(grp_pub_key), priv_key_to_str(grp_priv_key)]
-                cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES('%s', '%s', '%s', '%s')" % (grp_info[0], grp_name, grp_info[1], grp_info[2])) 
+                grp_id = grp_registering_info[0]
+
+                cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES('%s', '%s', '%s', '%s')" % (grp_id, grp_name, pub_key_to_str(grp_pub_key), priv_key_to_str(grp_priv_key)) )
                 print()
-                print("Created new group "+ grp_name + " with id " + grp_info[0])
+                print("Created new group "+ grp_name + " with id " + grp_id)
                 print()               
         else: 
             u = x.find(':')
