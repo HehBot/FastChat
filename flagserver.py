@@ -5,6 +5,7 @@ import types
 import json
 import sqlite3
 import threading
+import ast
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
@@ -142,6 +143,7 @@ def service_connection(key, event):
             print()
             req = json.loads(recv_data)
 
+            # Public key request
             if (req["hdr"] == "pub_key"):
                 resp = None
                 pub_key_output_buffer = cursor.execute("SELECT pub_key, output_buffer FROM customers WHERE uname='%s'" % (req["msg"])).fetchone()
@@ -153,6 +155,7 @@ def service_connection(key, event):
 
                 append_output_buffer(data.uname, json.dumps(resp))
 
+            # Group creating request
             elif (req["hdr"] == "grp_registering"): #Creating group
                 global u
                 group_id = u
@@ -164,6 +167,7 @@ def service_connection(key, event):
                 
                 u = u + 1
 
+            # Normal Message
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
                 mod_data = json.dumps({ "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
@@ -172,8 +176,10 @@ def service_connection(key, event):
 
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
             
+            # Group operations - Adding and sending non Abelian group
             elif req["hdr"][0] == "<":
-                if ":" in req["hdr"][1:]: #Adding this person to group
+                # Adding person to group
+                if ":" in req["hdr"][1:]: 
                     k=req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 1:]
@@ -193,7 +199,8 @@ def service_connection(key, event):
                     else: #If not admin
                         TODO
 
-                else: #Messaging on a group
+                # Messaging on a group
+                else: 
                     group_id = int(req["hdr"][1:])
                     mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
                     list_of_names = cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id)).fetchall()
@@ -209,7 +216,7 @@ def service_connection(key, event):
             client_sock.close()
         
     if event & selectors.EVENT_WRITE:
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
+        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0] 
         if len(output_buffer) > 0:
             client_sock.send(output_buffer.encode("utf-8"))
             cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
