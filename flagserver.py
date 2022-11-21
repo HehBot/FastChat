@@ -129,7 +129,7 @@ def accept_wrapper(sock):
             sel.register(fileobj=client_sock, events=events, data=data)
             break
 
-# u i the group id
+# u is the group id
 u = 1
 def service_connection(key, event):
     client_sock = key.fileobj
@@ -202,7 +202,6 @@ def service_connection(key, event):
                     if(is_admin == 1):
                         cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_name, 0))
                         resp=json.dumps({"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-#                        output_buffer[recip_name].append(resp)
                         append_output_buffer(recip_name, resp)
                         print("\nAdded " + recip_name + " to group " + str(group_id) + " by " + data.uname + '\n')
 

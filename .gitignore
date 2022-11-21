@@ -1,5 +1,6 @@
 *.swp
 __pycache__/
 .mypy_cache/
-*.db
-*.key
+*.db*
+test/tmp*/*
+test/*.py

@@ -71,92 +71,93 @@ grp_registering_info = [None, False] # Group_id, is Group id set
 
 def listen():
     input_buffer = ""
+
+    def process_data(data):
+        req = json.loads(data)
+
+        if req["hdr"] == "pub_key":
+            pub_key_info[0] = str_to_pub_key(req["msg"])
+            pub_key_info[1] = True
+            pub_key_info[2] = False
+
+        elif req["hdr"] == "group_id":
+            grp_registering_info[0] = int(req["msg"])
+            grp_registering_info[1] = True
+
+        elif req["hdr"][:11] == "group_added":
+            group_id = int(req["hdr"].split(':')[1])
+            admin_name = req["hdr"].split(":")[2]
+            admin_pub_key = str_to_pub_key(req["hdr"].split(':')[3])
+
+            sent_data = json.dumps({ "hdr":'<' + str(group_id) +':'+ uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+
+            recv = decrypt_e2e_req(sent_data, priv_key, admin_pub_key)
+
+            msg = recv["msg"]
+            time = recv["time"]
+
+            p = msg.find(':')
+            group_name = msg[:p]
+            group_pub_key, group_priv_key = msg[p + 1:].split(' ')
+
+            cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, group_pub_key, group_priv_key))
+
+            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(time))))
+            print("You have been added to " + group_name + " by " + admin_name + '\n')
+
+        elif req["hdr"] == "error":
+            pub_key_info[1] = True
+            pub_key_info[2] = True
+
+        # Personal message
+        elif req["hdr"][0] == '>':
+            sndr_uname, sndr_pub_key = req["hdr"][1:].split(':')
+            sndr_pub_key = str_to_pub_key(sndr_pub_key)
+
+            sent_data = json.dumps({ "hdr":'>' + uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+
+            msg = decrypt_e2e_req(sent_data, priv_key, sndr_pub_key)
+
+            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
+            print(f"Received from {sndr_uname}:")
+            print("\n\t" + msg["msg"])
+
+            if "file" in msg.keys():
+                file_name, file = msg["file"].split()
+                file_name = msg["time"] + '_' + base64.b64decode(file_name.encode("utf-8")).decode("utf-8")
+                print(f"\tFile '{file_name}' (saved)")
+                file = base64.b64decode(file.encode("utf-8"))
+                f = open(file_name, "wb")
+                f.write(file)
+                f.close()
+
+        # Group message
+        elif req["hdr"][0] == '<':
+            x = req["hdr"][1:]
+
+            group_id, sndr_uname, sndr_pub_key = x.split(':')
+            group_id = int(group_id)
+
+            sent_data = json.dumps({ "hdr":'<' + str(group_id), "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+
+            group_priv_key, group_name = cursor.execute("SELECT group_priv_key, group_name FROM group_name_keys WHERE group_id = %d" % (group_id)).fetchone()
+
+            msg = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
+
+            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
+            print(f"Received on {group_name} from {sndr_uname}:")
+            print("\n\t" + msg["msg"])
+            
+            if "file" in msg.keys():
+                file_name, file = msg["file"].split()
+                file_name = msg["time"] + '_' + base64.b64decode(file_name.encode("utf-8")).decode("utf-8")
+                print(f"\tFile '{file_name}' (saved)")
+                file = base64.b64decode(file.encode("utf-8"))
+                f = open(file_name, "wb")
+                f.write(file)
+                f.close()
+
     while(True):
-        def process_data(data):
-            req = json.loads(data)
-
-            if req["hdr"] == "pub_key":
-                pub_key_info[0] = str_to_pub_key(req["msg"])
-                pub_key_info[1] = True
-                pub_key_info[2] = False
-
-            elif req["hdr"] == "group_id":
-                grp_registering_info[0] = int(req["msg"])
-                grp_registering_info[1] = True
-
-            elif req["hdr"][:11] == "group_added":
-                group_id = int(req["hdr"].split(':')[1])
-                admin_name = req["hdr"].split(":")[2]
-                admin_pub_key = str_to_pub_key(req["hdr"].split(':')[3])
-
-                sent_data = json.dumps({ "hdr":'<' + str(group_id) +':'+ uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-
-                recv = decrypt_e2e_req(sent_data, priv_key, admin_pub_key)
-
-                msg = recv["msg"]
-                time = recv["time"]
-
-                p = msg.find(':')
-                group_name = msg[:p]
-                group_pub_key, group_priv_key = msg[p + 1:].split(' ')
-
-                cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, group_pub_key, group_priv_key))
-
-                print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(time))))
-                print("You have been added to " + group_name + " by " + admin_name + '\n')
-
-            elif req["hdr"] == "error":
-                pub_key_info[1] = True
-                pub_key_info[2] = True
-
-            # Personal message
-            elif req["hdr"][0] == '>':
-                sndr_uname, sndr_pub_key = req["hdr"][1:].split(':')
-                sndr_pub_key = str_to_pub_key(sndr_pub_key)
-
-                sent_data = json.dumps({ "hdr":'>' + uname, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-
-                msg = decrypt_e2e_req(sent_data, priv_key, sndr_pub_key)
-
-                print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
-                print(f"Received from {sndr_uname}:")
-                print("\n\t" + msg["msg"])
-
-                if "file" in msg.keys():
-                    file_name, file = msg["file"].split()
-                    file_name = msg["time"] + '_' + base64.b64decode(file_name.encode("utf-8")).decode("utf-8")
-                    print(f"\tFile '{file_name}' (saved)")
-                    file = base64.b64decode(file.encode("utf-8"))
-                    f = open(file_name, "wb")
-                    f.write(file)
-                    f.close()
-
-            # Group message
-            elif req["hdr"][0] == '<':
-                x = req["hdr"][1:]
-
-                group_id, sndr_uname, sndr_pub_key = x.split(':')
-                group_id = int(group_id)
-
-                sent_data = json.dumps({ "hdr":'<' + str(group_id), "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-
-                group_priv_key, group_name = cursor.execute("SELECT group_priv_key, group_name FROM group_name_keys WHERE group_id = %d" % (group_id)).fetchone()
-
-                msg = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
-
-                print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
-                print(f"Received on {group_name} from {sndr_uname}:")
-                print("\n\t" + msg["msg"])
-                
-                if "file" in msg.keys():
-                    file_name, file = msg["file"].split()
-                    file_name = msg["time"] + '_' + base64.b64decode(file_name.encode("utf-8")).decode("utf-8")
-                    print(f"\tFile '{file_name}' (saved)")
-                    file = base64.b64decode(file.encode("utf-8"))
-                    f = open(file_name, "wb")
-                    f.write(file)
-                    f.close()
-
         n = 0
         i = 0
         while i != len(input_buffer):
