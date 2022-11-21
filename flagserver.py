@@ -110,7 +110,6 @@ def accept_wrapper(sock):
                 resp = json.dumps({ "hdr":"error:2", "msg":f"User {uname} not registered" })
                 client_sock.sendall(resp.encode("utf-8"))
                 continue
-
             pub_key = str_to_pub_key(pub_key)
 
             if (not verify_onboarding_req(req_str, pub_key)):

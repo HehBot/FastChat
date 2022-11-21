@@ -84,6 +84,17 @@ def listen():
             grp_registering_info[0] = int(req["msg"])
             grp_registering_info[1] = True
 
+        elif req["hdr"][:13] == "group_removed":
+            group_id = int(req["hdr"].split(':')[1])
+            group_name = cursor.execute("SELECT group_name_keys.group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
+            cursor.execute("DELETE FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id))
+            print("You have been removed from group "+group_name)
+
+        elif req["hdr"][:14] == "person_removed":
+            group_id = req["hdr"].split(':')[1]
+            group_name = cursor.execute("SELECT group_name_keys.group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
+            recip = req["hdr"].split(':')[2]
+            print(recip+" was removed from the group "+group_name)   
         elif req["hdr"][:11] == "group_added":
             group_id = int(req["hdr"].split(':')[1])
             admin_name = req["hdr"].split(":")[2]
@@ -104,6 +115,8 @@ def listen():
 
             print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(time))))
             print("You have been added to " + group_name + " by " + admin_name + '\n')
+
+#elif req["hdr"][]
 
         elif req["hdr"] == "error":
             pub_key_info[1] = True
@@ -237,8 +250,25 @@ try:
 
         # Group operations
         elif x[0]=='$':
+
+            # Removing people from group
+            if "::" in x:
+                x = x[1:]
+                u = x.find(':')
+                group_name = x[:u]
+                group_id, group_pub_key, group_priv_key = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name = '%s'" % (group_name)).fetchone()
+                recip_uname = x[u + 1:]
+                msg = ''
+                req = { "hdr":"<" + str(group_id) + "::" + recip_uname, "msg":msg, "time": str(time())}
+
+                #enc_req = encrypt_e2e_req(req, pub_key_info[0], priv_key)
+                client_sock.sendall(enc_req.encode("utf-8"))
+
+                print("\nRemoved"+ recip_uname +" from the group "+ group_name + '\n')
+
+
             # Adding people in the group
-            if ':' in x:
+            elif ":" in x:
                 x = x[1:]
                 u = x.find(':')
                 group_name = x[:u]
