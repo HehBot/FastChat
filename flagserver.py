@@ -9,7 +9,6 @@ import ast
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
-from Server_processing import process
 
 if len(argv) != 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
