@@ -261,13 +261,15 @@ try:
                 u = x.find(':')
                 group_name = x[:u]
                 group_id, group_pub_key, group_priv_key = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name = '%s'" % (group_name)).fetchone()
-                recip_uname = x[u + 2:]
+                if len(x)>u+2:
+                    recip_uname = x[u + 2:]
+                else:
+                    recip_uname = uname
                 msg = ''
                 req = { "hdr":"<" + str(group_id) + "::" + recip_uname, "msg":msg, "time": str(time())}
                 enc_req = encrypt_e2e_req(req, str_to_pub_key(group_pub_key), priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
 
-                print("\nRemoved"+ recip_uname +" from the group "+ group_name + '\n')
 
 
             # Adding people in the group
