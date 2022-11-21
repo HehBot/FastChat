@@ -187,8 +187,31 @@ def service_connection(key, event):
            
             # Group operations
             elif req["hdr"][0] == "<":
+
+                # Removing from a group
+                if "::" in req["hdr"][1:]:
+                    k=req["hdr"].find(":")
+                    group_id = int(req["hdr"][1:k])
+                    recip_name = req["hdr"][k + 2:]
+                    
+                    print("REMOVING FROM GROUP")
+                    is_admin = cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname)).fetchone()[0]
+
+                    if(is_admin == 1):
+                        cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
+                        resp1=json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        append_output_buffer(recip_name, resp1)
+                        resp2=json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        group_participants = cursor.execute("SELECT group.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
+                        for i in group_participants:
+                            append_output_buffer(i[0], resp2)
+                        print("\nRemoved " + recip_name + " from group " + str(group_id) + " by " + data.uname + '\n')
+
+                    else: #If not admin
+                        pass
+
                 # Adding this person to group
-                if ":" in req["hdr"][1:]:
+                elif ":" in req["hdr"][1:]:
                     k=req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 1:]
@@ -205,8 +228,7 @@ def service_connection(key, event):
                         print("\nAdded " + recip_name + " to group " + str(group_id) + " by " + data.uname + '\n')
 
                     else: #If not admin
-                        TODO
-
+                        pass
                 # Messaging on a group
                 else:
                     group_id = int(req["hdr"][1:])
