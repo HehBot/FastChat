@@ -8,7 +8,7 @@ from time import time, strftime, localtime
 
 from request import *
 
-if len(argv) < 3:
+if len(argv) != 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
     exit(-1)
 
@@ -85,7 +85,7 @@ def listen():
                 grp_registering_info[0] = req["msg"]
                 grp_registering_info[1] = True 
 
-            elif req["hdr"][:11] == "group_added":
+            elif req["hdr"][:11] == "<roup_added":
                 grp_id = int(req["hdr"].split(':')[1])
                 admin_name = req["hdr"].split(":")[2]
                 admin_pub_key = str_to_pub_key(req["hdr"].split(':')[3])
