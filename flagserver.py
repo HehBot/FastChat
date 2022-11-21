@@ -28,7 +28,7 @@ sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None
 # dbfile stores whether the database file exists or not
 dbfile = True
 try:
-    f = open("fastchat.db", 'r')
+    f = open("fastchat.db")
     f.close()
 except:
     dbfile = False
@@ -160,16 +160,11 @@ def service_connection(key, event):
 
             # Normal Message
             elif req["hdr"][0] == ">":
-                recip_uname = req["hdr"][1:]
-                mod_data = json.dumps({ "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-
-                append_output_buffer(recip_uname, mod_data)
-
-                print("\nSending " + mod_data + " to " + recip_uname + '\n')
+                append_output_buffer(recip_uname,data.uname,req)
             
-            # Group operations - Adding and sending non Abelian group
+            # Group Operation Adding and sending non abelian groups
             elif req["hdr"][0] == "<":
-                # Adding person to group
+                #Adding this person to group
                 if ":" in req["hdr"][1:]: 
                     k=req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
@@ -182,9 +177,9 @@ def service_connection(key, event):
 
                     if(is_admin == 1):
                         cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_name, 0))
-                        resp=json.dumps({"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        resp=json.dumps({"hdr":"<roup_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
 #                        output_buffer[recip_name].append(resp)
-                        append_output_buffer(recip_name, resp)
+                        append_output_buffer(recip_name,data.uname, resp)
                         print("\nAdded " + recip_name + " to group " + str(group_id) + " by " + data.uname + '\n')
 
                     else: #If not admin
@@ -193,13 +188,12 @@ def service_connection(key, event):
                 # Messaging on a group
                 else: 
                     group_id = int(req["hdr"][1:])
-                    mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
                     list_of_names = cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id)).fetchall()
                     for recip_uname in list_of_names:
                         if recip_uname[0] != data.uname:
-                            append_output_buffer(recip_uname[0], mod_data)
+                            append_output_buffer(recip_uname[0],data.uname, req)
                     
-                    print("\nSending " + mod_data + " to " + str(group_id) + '\n')
+                    print("\nSending " + req + " to " + str(group_id) + '\n')
             
         else:
             print(f"Closing connection to {data.addr}")
@@ -207,7 +201,7 @@ def service_connection(key, event):
             client_sock.close()
         
     if event & selectors.EVENT_WRITE:
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0] 
+        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
         if len(output_buffer) > 0:
             client_sock.send(output_buffer.encode("utf-8"))
             cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
