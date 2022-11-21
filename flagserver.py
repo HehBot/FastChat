@@ -5,11 +5,12 @@ import types
 import json
 import sqlite3
 import threading
+import ast
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
 
-if len(argv) < 3:
+if len(argv) != 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
     exit(-1)
 
@@ -24,9 +25,10 @@ conn_accepting_sock.setblocking(False)
 sel = selectors.DefaultSelector()
 sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from |conn_accepting_sock|
 
+# dbfile stores whether the database file exists or not
 dbfile = True
 try:
-    f = open("fastchat.db")
+    f = open("fastchat.db", 'r')
     f.close()
 except:
     dbfile = False
@@ -34,11 +36,9 @@ except:
 conn = sqlite3.connect("fastchat.db")
 cursor = conn.cursor()
 
-#output_buffer = {}
-
 if not dbfile:
-    conn.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
-    conn.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
+    cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
+    cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
 
 # Server List
 # no_servers = int(input("Enter number of other servers"))
@@ -128,7 +128,7 @@ def accept_wrapper(sock):
             events = selectors.EVENT_READ | selectors.EVENT_WRITE
             sel.register(fileobj=client_sock, events=events, data=data)
             break
-
+# u is the group id
 u = 1
 def service_connection(key, event):
     client_sock = key.fileobj
@@ -142,9 +142,11 @@ def service_connection(key, event):
             print()
             req = json.loads(recv_data)
 
+            # Public key request
             if (req["hdr"] == "pub_key"):
                 append_output_buffer(data.uname,data.uname, json.dumps(req))
 
+            # Group creating request
             elif (req["hdr"] == "grp_registering"): #Creating group
                 global u
                 group_id = u
@@ -156,6 +158,7 @@ def service_connection(key, event):
                 
                 u = u + 1
 
+            # Normal Message
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
                 mod_data = json.dumps({ "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
@@ -164,8 +167,10 @@ def service_connection(key, event):
 
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
             
+            # Group operations - Adding and sending non Abelian group
             elif req["hdr"][0] == "<":
-                if ":" in req["hdr"][1:]: #Adding this person to group
+                # Adding person to group
+                if ":" in req["hdr"][1:]: 
                     k=req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 1:]
@@ -185,7 +190,8 @@ def service_connection(key, event):
                     else: #If not admin
                         TODO
 
-                else: #Messaging on a group
+                # Messaging on a group
+                else: 
                     group_id = int(req["hdr"][1:])
                     mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
                     list_of_names = cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id)).fetchall()
@@ -201,7 +207,7 @@ def service_connection(key, event):
             client_sock.close()
         
     if event & selectors.EVENT_WRITE:
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
+        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0] 
         if len(output_buffer) > 0:
             client_sock.send(output_buffer.encode("utf-8"))
             cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
