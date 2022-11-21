@@ -71,6 +71,8 @@ def accept_wrapper(sock):
         
         print("\nLOADING :")
         print(req_str)
+        if req_str == "":
+            continue
         print()
         req = json.loads(req_str)
 
@@ -239,7 +241,7 @@ def service_connection(key, event):
                         for recip_uname in list_of_names:
                             if recip_uname[0] != data.uname:
                                 append_output_buffer(recip_uname[0], mod_data)
-                        
+
                         print("\nSending " + mod_data + " to " + str(group_id) + '\n')
         
         n = 0
