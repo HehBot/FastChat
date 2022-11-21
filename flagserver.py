@@ -9,7 +9,7 @@ import threading
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
 
-if len(argv) < 3:
+if len(argv) != 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
     exit(-1)
 
@@ -24,9 +24,10 @@ conn_accepting_sock.setblocking(False)
 sel = selectors.DefaultSelector()
 sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from |conn_accepting_sock|
 
+# dbfile stores whether the database file exists or not
 dbfile = True
 try:
-    f = open("fastchat.db")
+    f = open("fastchat.db", 'r')
     f.close()
 except:
     dbfile = False
@@ -34,11 +35,9 @@ except:
 conn = sqlite3.connect("fastchat.db")
 cursor = conn.cursor()
 
-#output_buffer = {}
-
 if not dbfile:
-    conn.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
-    conn.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
+    cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
+    cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
 
 # Server List
 # no_servers = int(input("Enter number of other servers"))
@@ -55,6 +54,7 @@ if not dbfile:
 #     data = types.SimpleNamespace(addr=other_server_addr)
 #     sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 # End
+
 
 def append_output_buffer(uname, newdata):
     output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
@@ -128,7 +128,7 @@ def accept_wrapper(sock):
             events = selectors.EVENT_READ | selectors.EVENT_WRITE
             sel.register(fileobj=client_sock, events=events, data=data)
             break
-
+# u is the group id
 u = 1
 def service_connection(key, event):
     client_sock = key.fileobj
