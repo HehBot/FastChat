@@ -38,12 +38,12 @@ class AESCipher(object):
     def __init__(self, key):
         self.bs = AES.block_size
         self.key = rsa.compute_hash(key, 'SHA-256')
-    def encrypt(self, raw): # returns string
+    def encrypt(self, raw): # str -> str
         raw = self._pad(raw)
         iv = rsa.randnum.read_random_bits(self.bs * 8)
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
         return base64.b64encode(iv + cipher.encrypt(raw.encode())).decode("utf-8")
-    def decrypt(self, enc):
+    def decrypt(self, enc): # str -> str
         enc = base64.b64decode(enc)
         iv = enc[:self.bs]
         cipher = AES.new(self.key, AES.MODE_CBC, iv)
@@ -65,6 +65,10 @@ def encrypt_e2e_req(req, recip_pub_key, sndr_priv_key, aes_key_len=128):
     enc_aes_key = base64.b64encode(rsa.encrypt(aes_key, recip_pub_key)).decode("utf-8")
     enc_time = aes.encrypt(time)
 
+    if "file" in req.keys():
+        enc_file = aes.encrypt(req["file"])
+        enc_msg = enc_msg + ' ' + enc_file
+
     comp_msg = req["hdr"] + enc_msg + enc_aes_key + enc_time
     sign = base64.b64encode(rsa.sign(comp_msg.encode("utf-8"), sndr_priv_key, "SHA-256")).decode("utf-8")
 
@@ -83,10 +87,18 @@ def decrypt_e2e_req(json_string, recip_priv_key, sndr_pub_key):
     aes_key = rsa.decrypt(base64.b64decode(req["aes_key"]), recip_priv_key)
     aes = AESCipher(aes_key)
 
-    msg = aes.decrypt(req["msg"])
+    s = req["msg"].split()
+
+    msg = aes.decrypt(s[0])
     time = aes.decrypt(req["time"])
 
-    return { "hdr":req["hdr"], "msg":msg, "time":time }
+    ret = { "hdr":req["hdr"], "msg":msg, "time":time }
+    file = ""
+    if len(s) == 2:
+        file = aes.decrypt(s[1])
+        ret["file"] = file
+
+    return ret
 
 def create_onboarding_req(uname, time, sndr_pub_key, sndr_priv_key):
     hdr = "onboarding"

@@ -5,7 +5,6 @@ import types
 import json
 import sqlite3
 import threading
-import ast
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
@@ -23,7 +22,7 @@ print(f"Listening on {server_addr} as connection accepter of flag server")
 conn_accepting_sock.setblocking(False)
 
 sel = selectors.DefaultSelector()
-sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from |conn_accepting_sock|
+sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from conn_accepting_sock
 
 # dbfile stores whether the database file exists or not
 dbfile = True
@@ -35,6 +34,7 @@ except:
 
 conn = sqlite3.connect("fastchat.db")
 cursor = conn.cursor()
+
 
 if not dbfile:
     cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
@@ -55,7 +55,6 @@ if not dbfile:
 #     data = types.SimpleNamespace(addr=other_server_addr)
 #     sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 # End
-
 
 def append_output_buffer(uname, newdata):
     output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
@@ -97,7 +96,7 @@ def accept_wrapper(sock):
             resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
 
             client_sock.sendall(resp.encode("utf-8"))
-            data = types.SimpleNamespace(addr=client_addr, uname=uname)
+            data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
             events = selectors.EVENT_READ | selectors.EVENT_WRITE
             sel.register(fileobj=client_sock, events=events, data=data)
             break
@@ -125,25 +124,36 @@ def accept_wrapper(sock):
             resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
 
             client_sock.sendall(resp.encode("utf-8"))
-            data = types.SimpleNamespace(addr=client_addr, uname=uname)
+            data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
             events = selectors.EVENT_READ | selectors.EVENT_WRITE
             sel.register(fileobj=client_sock, events=events, data=data)
             break
-# u is the group id
+
+# u i the group id
 u = 1
 def service_connection(key, event):
     client_sock = key.fileobj
     data = key.data
     if event & selectors.EVENT_READ:
-        recv_data = client_sock.recv(1024).decode()
-        pub_key = cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (data.uname)).fetchone()[0]
-        if recv_data:
-            print("\nLOADS")
-            print(recv_data)
-            print()
-            req = json.loads(recv_data)
 
-            # Public key request
+        recv_data = client_sock.recv(1024).decode("utf-8")
+
+        if recv_data == "":
+            print(f"Closing connection to {data.addr}")
+            sel.unregister(client_sock)
+            client_sock.close()
+
+        data.inb += recv_data
+        
+        def process_data(json_string):
+            pub_key = cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (data.uname)).fetchone()[0]
+
+            print("\nLOADS")
+            print(json_string)
+            print()
+            req = json.loads(json_string)
+
+            # Response to public key request
             if (req["hdr"] == "pub_key"):
                 resp = None
                 pub_key_output_buffer = cursor.execute("SELECT pub_key, output_buffer FROM customers WHERE uname='%s'" % (req["msg"])).fetchone()
@@ -155,8 +165,8 @@ def service_connection(key, event):
 
                 append_output_buffer(data.uname, json.dumps(resp))
 
-            # Group creating request
-            elif (req["hdr"] == "grp_registering"): #Creating group
+            # Response to group creating request
+            elif (req["hdr"] == "grp_registering"):
                 global u
                 group_id = u
                 cursor.execute("INSERT INTO groups(group_id, uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, data.uname, 1))
@@ -167,7 +177,7 @@ def service_connection(key, event):
                 
                 u = u + 1
 
-            # Normal Message
+            # Personal message
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
                 mod_data = json.dumps({ "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
@@ -175,11 +185,11 @@ def service_connection(key, event):
                 append_output_buffer(recip_uname, mod_data)
 
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
-            
-            # Group operations - Adding and sending non Abelian group
+           
+            # Group operations
             elif req["hdr"][0] == "<":
-                # Adding person to group
-                if ":" in req["hdr"][1:]: 
+                # Adding this person to group
+                if ":" in req["hdr"][1:]:
                     k=req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 1:]
@@ -200,7 +210,7 @@ def service_connection(key, event):
                         TODO
 
                 # Messaging on a group
-                else: 
+                else:
                     group_id = int(req["hdr"][1:])
                     mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
                     list_of_names = cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id)).fetchall()
@@ -209,14 +219,23 @@ def service_connection(key, event):
                             append_output_buffer(recip_uname[0], mod_data)
                     
                     print("\nSending " + mod_data + " to " + str(group_id) + '\n')
-            
-        else:
-            print(f"Closing connection to {data.addr}")
-            sel.unregister(client_sock)
-            client_sock.close()
+        
+        n = 0
+        i = 0
+        while i != len(data.inb):
+            if data.inb[i] == '}' and n % 2 == 0:
+                json_string = data.inb[:i + 1]
+                data.inb = data.inb[i + 1:]
+                n = 0
+                i = 0
+                process_data(json_string)
+                continue
+            if data.inb[i] == '"' and data.inb[i - 1] != '\\':
+                n += 1
+            i += 1
         
     if event & selectors.EVENT_WRITE:
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0] 
+        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
         if len(output_buffer) > 0:
             client_sock.send(output_buffer.encode("utf-8"))
             cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
