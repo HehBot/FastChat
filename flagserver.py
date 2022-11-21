@@ -9,6 +9,7 @@ import ast
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
+from Server_processing import process
 
 if len(argv) != 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
@@ -58,8 +59,9 @@ if not dbfile:
 
 def append_output_buffer(uname, newdata, senders_uname):
     output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
-    output_buffer = output_buffer + newdata
-    cursor.execute("UPDATE customers SET output_buffer='%s' WHERE uname='%s'" % (output_buffer, uname))
+    output_list=ast.literal_eval(output_buffer)
+    output_list.append((newdata, senders_uname))
+    cursor.execute("UPDATE customers SET output_buffer='%s' WHERE uname='%s'" % (output_list, uname))
 
 
 def accept_wrapper(sock):
@@ -90,7 +92,7 @@ def accept_wrapper(sock):
 
                 continue
 
-            cursor.execute("INSERT INTO customers(uname, pub_key, output_buffer) VALUES('%s', '%s', '')" % (uname, pub_key))
+            cursor.execute("INSERT INTO customers(uname, pub_key, output_buffer) VALUES('%s', '%s', '[]')" % (uname, pub_key))
 
             print(f"User {uname} registered")
             resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
@@ -202,8 +204,9 @@ def service_connection(key, event):
         
     if event & selectors.EVENT_WRITE:
         output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
-        if len(output_buffer) > 0:
-            client_sock.send(output_buffer.encode("utf-8"))
+        output_list = ast.literal_eval(output_buffer)
+        for i in output_list:
+            process(i, )
             cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
 
 try:
