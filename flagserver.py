@@ -60,7 +60,7 @@ if not dbfile:
 def append_output_buffer(uname, newdata, senders_uname):
     output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
     output_list=ast.literal_eval(output_buffer)
-    output_list.append((newdata, senders_uname))
+    output_list.append([newdata, senders_uname])
     cursor.execute("UPDATE customers SET output_buffer='%s' WHERE uname='%s'" % (output_list, uname))
 
 
@@ -205,9 +205,45 @@ def service_connection(key, event):
     if event & selectors.EVENT_WRITE:
         output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
         output_list = ast.literal_eval(output_buffer)
+
         for i in output_list:
-            process(i, )
-            cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
+            senders_uname = i[0]
+            sent_req = json.loads(i[1])
+            pub_key = cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (senders_uname)).fetchone()[0]
+
+            if (sent_req["hdr"] == "pub_key"):
+                resp = None
+                pub_key_output_buffer = cursor.execute("SELECT pub_key, output_buffer FROM customers WHERE uname='%s'" % (sent_req["msg"])).fetchone()
+                if pub_key_output_buffer == None:
+                    resp = { "hdr":"error", "msg":f"User {sent_req['msg']} not registered" }
+                else:
+                    pub_key_req = pub_key_output_buffer[0]
+                    resp = { "hdr":"pub_key", "msg":pub_key_req }
+
+                #append_output_buffer(senders_uname, json.dumps(resp))
+                client_sock.send(json.dumps(resp).encode("utf-8"))
+
+            elif sent_req["hdr"][0] == ">":
+                recip_uname = sent_req["hdr"][1:]
+                mod_data = json.dumps({ "hdr":'>' + senders_uname + ':' + pub_key, "msg":sent_req["msg"], "aes_key":sent_req["aes_key"], "time":sent_req["time"], "sign":sent_req["sign"] })
+
+                #append_output_buffer(recip_uname, mod_data)
+                client_sock.send(json.dumps(mod_data).encode("utf-8"))
+                print("\nSending " + mod_data + " to " + recip_uname + '\n')
+
+            elif sent_req["hdr"][0] == "<":
+                if ':' in sent_req["hdr"][0]:
+                    client_sock.send(json.dumps(sent_req).encode("utf-8"))
+
+                else: #Messaging on a group
+                    group_id = int(sent_req["hdr"][1:])
+                    mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + senders_uname + ':' + pub_key, "msg":sent_req["msg"], "aes_key":sent_req["aes_key"], "time":sent_req["time"], "sign":sent_req["sign"] })
+                    client_sock.send(json.dumps(mod_data).encode("utf-8"))
+                
+                    print("\nSending " + mod_data + " to " + str(group_id) + '\n')
+        
+        
+        cursor.execute(f"UPDATE customers SET output_buffer='[]' WHERE uname='{data.uname}'")
 
 try:
     while True:
