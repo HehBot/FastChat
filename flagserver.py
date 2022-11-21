@@ -56,7 +56,7 @@ if not dbfile:
 #     sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 # End
 
-def append_output_buffer(uname, newdata):
+def append_output_buffer(uname, newdata, senders_uname):
     output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
     output_buffer = output_buffer + newdata
     cursor.execute("UPDATE customers SET output_buffer='%s' WHERE uname='%s'" % (output_buffer, uname))
@@ -143,15 +143,7 @@ def service_connection(key, event):
             req = json.loads(recv_data)
 
             if (req["hdr"] == "pub_key"):
-                resp = None
-                pub_key_output_buffer = cursor.execute("SELECT pub_key, output_buffer FROM customers WHERE uname='%s'" % (req["msg"])).fetchone()
-                if pub_key_output_buffer == None:
-                    resp = { "hdr":"error", "msg":f"User {req['msg']} not registered" }
-                else:
-                    pub_key = pub_key_output_buffer[0]
-                    resp = { "hdr":"pub_key", "msg":pub_key }
-
-                append_output_buffer(data.uname, json.dumps(resp))
+                append_output_buffer(data.uname,data.uname, json.dumps(req))
 
             elif (req["hdr"] == "grp_registering"): #Creating group
                 global u
