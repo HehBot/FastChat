@@ -92,7 +92,7 @@ def listen():
 
         elif req["hdr"][:14] == "person_removed":
             group_id = req["hdr"].split(':')[1]
-            group_name = cursor.execute("SELECT group_name_keys.group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
+            group_name = cursor.execute("SELECT group_name_keys.group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(int(group_id))).fetchone()[0]
             recip = req["hdr"].split(':')[2]
             print(recip+" was removed from the group "+group_name)   
         elif req["hdr"][:11] == "group_added":
@@ -235,18 +235,20 @@ try:
             x = x[1:]
             u = x.find(':')
             group_name = x[0:u]
-            group_id, group_pub_key, group_priv_key = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name ='%s'" % (group_name)).fetchone()
-            group_pub_key = str_to_pub_key(group_pub_key)
-            group_priv_key = str_to_priv_key(group_priv_key)
+            grp_info = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name ='%s'" % (group_name)).fetchone()
+            if grp_info:
+                group_id, group_pub_key, group_priv_key = grp_info
+                group_pub_key = str_to_pub_key(group_pub_key)
+                group_priv_key = str_to_priv_key(group_priv_key)
 
-            msg = x[u + 1:]
-            req = { "hdr":"<" + str(group_id), "msg":msg, "time": str(time())}
+                msg = x[u + 1:]
+                req = { "hdr":"<" + str(group_id), "msg":msg, "time": str(time())}
 
-            if (file != ""):
-                req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
+                if (file != ""):
+                    req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
 
-            enc_req = encrypt_e2e_req(req, group_pub_key, priv_key)
-            client_sock.sendall(enc_req.encode("utf-8"))
+                enc_req = encrypt_e2e_req(req, group_pub_key, priv_key)
+                client_sock.sendall(enc_req.encode("utf-8"))
 
         # Group operations
         elif x[0]=='$':
@@ -257,11 +259,10 @@ try:
                 u = x.find(':')
                 group_name = x[:u]
                 group_id, group_pub_key, group_priv_key = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name = '%s'" % (group_name)).fetchone()
-                recip_uname = x[u + 1:]
+                recip_uname = x[u + 2:]
                 msg = ''
                 req = { "hdr":"<" + str(group_id) + "::" + recip_uname, "msg":msg, "time": str(time())}
-
-                #enc_req = encrypt_e2e_req(req, pub_key_info[0], priv_key)
+                enc_req = encrypt_e2e_req(req, str_to_pub_key(group_pub_key), priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
 
                 print("\nRemoved"+ recip_uname +" from the group "+ group_name + '\n')

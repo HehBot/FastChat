@@ -190,6 +190,7 @@ def service_connection(key, event):
 
                 # Removing from a group
                 if "::" in req["hdr"][1:]:
+                    print("Hellloooo")
                     k=req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 2:]
@@ -202,7 +203,7 @@ def service_connection(key, event):
                         resp1=json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
                         append_output_buffer(recip_name, resp1)
                         resp2=json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-                        group_participants = cursor.execute("SELECT group.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
+                        group_participants = cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
                         for i in group_participants:
                             append_output_buffer(i[0], resp2)
                         print("\nRemoved " + recip_name + " from group " + str(group_id) + " by " + data.uname + '\n')
@@ -234,11 +235,12 @@ def service_connection(key, event):
                     group_id = int(req["hdr"][1:])
                     mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
                     list_of_names = cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id)).fetchall()
-                    for recip_uname in list_of_names:
-                        if recip_uname[0] != data.uname:
-                            append_output_buffer(recip_uname[0], mod_data)
-                    
-                    print("\nSending " + mod_data + " to " + str(group_id) + '\n')
+                    if list_of_names:
+                        for recip_uname in list_of_names:
+                            if recip_uname[0] != data.uname:
+                                append_output_buffer(recip_uname[0], mod_data)
+                        
+                        print("\nSending " + mod_data + " to " + str(group_id) + '\n')
         
         n = 0
         i = 0
