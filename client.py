@@ -251,6 +251,8 @@ try:
                 client_sock.sendall(enc_req.encode("utf-8"))
 
         # Group operations
+        elif x == '':
+            continue
         elif x[0]=='$':
 
             # Removing people from group
