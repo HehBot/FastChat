@@ -1,9 +1,3 @@
 #!/bin/sh
-python3 flagserver.py localhost $1 &
-echo Server pid $!
-mkdir -p tmp1
-gnome-terminal --command="./ct tmp1 $1"
-mkdir -p tmp2
-gnome-terminal --command="./ct tmp2 $1"
-mkdir -p tmp3
-gnome-terminal --command="./ct tmp3 $1"
+gnome-terminal --command="python3 flagserver.py localhost $1"
+gnome-terminal --command="python3 flagserver.py localhost $2"

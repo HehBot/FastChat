@@ -15,6 +15,8 @@ if len(argv) != 3:
 
 server_addr = (argv[1], int(argv[2]))
 
+server_name = argv[1] + ':' + argv[2]
+
 conn_accepting_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 conn_accepting_sock.bind(server_addr)
 conn_accepting_sock.listen()
@@ -32,35 +34,18 @@ try:
 except:
     dbfile = False
 
-conn = sqlite3.connect("fastchat.db")
+conn = sqlite3.connect("fastchat.db", isolation_level=None)
 cursor = conn.cursor()
+cursor.execute("PRAGMA journal_mode=wal")
 
 
 if not dbfile:
     cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
     cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
 
-# Server List
-# no_servers = int(input("Enter number of other servers"))
-# for j in range(no_servers):
-#     ip = input()
-#     port = int(input())
-#     other_server_addr = (ip, port)
-
-#     other_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-#     other_server_sock.bind(other_server_addr)
-#     other_server_sock.listen()
-#     print(f"Listening on {other_server_addr} as socket for server at {other_server_addr}")
-#     other_server_sock.setblocking(False)
-#     data = types.SimpleNamespace(addr=other_server_addr)
-#     sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
-# End
-
 def append_output_buffer(uname, newdata):
-    output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
-    output_buffer = output_buffer + newdata
-    cursor.execute("UPDATE customers SET output_buffer='%s' WHERE uname='%s'" % (output_buffer, uname))
-
+    # see FIXME below
+    cursor.execute("UPDATE customers SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, uname))
 
 def accept_wrapper(sock):
     client_sock, client_addr = sock.accept()
@@ -259,10 +244,11 @@ def service_connection(key, event):
             i += 1
         
     if event & selectors.EVENT_WRITE:
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
-        if len(output_buffer) > 0:
-            client_sock.send(output_buffer.encode("utf-8"))
-            cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
+        # FIXME
+        output_buffer = cursor.execute(f"BEGIN TRANSACTION '{server_name}'")
+        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'")
+        output_buffer = cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
+        output_buffer = cursor.execute(f"END TRANSACTION '{server_name}'")
 
 try:
     while True:
