@@ -56,7 +56,7 @@ if not dbfile:
 #     sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 # End
 output_buffer_map = {}
-def append_output_buffer(uname, newdata, senders_uname):
+def append_output_buffer(uname, senders_uname, newdata):
     # output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
     # output_list=ast.literal_eval(output_buffer)
     # output_list.append([newdata, senders_uname])
@@ -162,7 +162,8 @@ def service_connection(key, event):
 
             # Normal Message
             elif req["hdr"][0] == ">":
-                append_output_buffer(recip_uname,data.uname,req)
+                recip_uname = req["hdr"][1:]
+                append_output_buffer(recip_uname,data.uname,json.dumps(req))
             
             # Group Operation Adding and sending non abelian groups
             elif req["hdr"][0] == "<":
@@ -193,7 +194,7 @@ def service_connection(key, event):
                     list_of_names = cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id)).fetchall()
                     for recip_uname in list_of_names:
                         if recip_uname[0] != data.uname:
-                            append_output_buffer(recip_uname[0],data.uname, req)
+                            append_output_buffer(recip_uname[0],data.uname, json.dumps(req))
                     
                     print("\nSending " + req + " to " + str(group_id) + '\n')
             
@@ -207,6 +208,11 @@ def service_connection(key, event):
         # output_list = ast.literal_eval(output_buffer)
         output_list = output_buffer_map[data.uname]
         for i in output_list:
+            print()
+            print("OUTPUT BUFFER HAS")
+            print(i)
+            print()
+            print("THIS")
             senders_uname = i[0]
             sent_req = json.loads(i[1])
             pub_key = cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (senders_uname)).fetchone()[0]
@@ -228,7 +234,7 @@ def service_connection(key, event):
                 mod_data = json.dumps({ "hdr":'>' + senders_uname + ':' + pub_key, "msg":sent_req["msg"], "aes_key":sent_req["aes_key"], "time":sent_req["time"], "sign":sent_req["sign"] })
 
                 #append_output_buffer(recip_uname, mod_data)
-                client_sock.send(json.dumps(mod_data).encode("utf-8"))
+                client_sock.send(mod_data.encode("utf-8"))
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
 
             elif sent_req["hdr"][0] == "<":
@@ -242,7 +248,7 @@ def service_connection(key, event):
                 
                     print("\nSending " + mod_data + " to " + str(group_id) + '\n')
         
-        
+        output_buffer_map[data.uname]=[]
         cursor.execute(f"UPDATE customers SET output_buffer='[]' WHERE uname='{data.uname}'")
 
 try:
