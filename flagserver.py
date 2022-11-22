@@ -55,12 +55,13 @@ if not dbfile:
 #     data = types.SimpleNamespace(addr=other_server_addr)
 #     sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 # End
-
+output_buffer_map = {}
 def append_output_buffer(uname, newdata, senders_uname):
-    output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
-    output_list=ast.literal_eval(output_buffer)
-    output_list.append([newdata, senders_uname])
-    cursor.execute("UPDATE customers SET output_buffer='%s' WHERE uname='%s'" % (output_list, uname))
+    # output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{uname}'").fetchone()[0]
+    # output_list=ast.literal_eval(output_buffer)
+    # output_list.append([newdata, senders_uname])
+    # cursor.execute("UPDATE customers SET output_buffer='%s' WHERE uname='%s'" % (output_list, uname))
+    output_buffer_map[uname].append([senders_uname,newdata])
 
 
 def accept_wrapper(sock):
@@ -92,7 +93,7 @@ def accept_wrapper(sock):
                 continue
 
             cursor.execute("INSERT INTO customers(uname, pub_key, output_buffer) VALUES('%s', '%s', '[]')" % (uname, pub_key))
-
+            output_buffer_map[uname]=[]
             print(f"User {uname} registered")
             resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
 
@@ -202,9 +203,9 @@ def service_connection(key, event):
             client_sock.close()
         
     if event & selectors.EVENT_WRITE:
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
-        output_list = ast.literal_eval(output_buffer)
-
+        # output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
+        # output_list = ast.literal_eval(output_buffer)
+        output_list = output_buffer_map[data.uname]
         for i in output_list:
             senders_uname = i[0]
             sent_req = json.loads(i[1])
