@@ -238,7 +238,7 @@ def service_connection(key, event):
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
 
             elif sent_req["hdr"][0] == "<":
-                if ':' in sent_req["hdr"][0]:
+                if ':' in sent_req["hdr"]:
                     client_sock.send(json.dumps(sent_req).encode("utf-8"))
 
                 else: #Messaging on a group
