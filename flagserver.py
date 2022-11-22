@@ -245,10 +245,11 @@ def service_connection(key, event):
         
     if event & selectors.EVENT_WRITE:
         # FIXME
-        output_buffer = cursor.execute(f"BEGIN TRANSACTION '{server_name}'")
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'")
-        output_buffer = cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
-        output_buffer = cursor.execute(f"END TRANSACTION '{server_name}'")
+        cursor.execute(f"BEGIN TRANSACTION '{server_name}'")
+        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
+        cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
+        cursor.execute(f"END TRANSACTION '{server_name}'")
+        client_sock.sendall(output_buffer.encode("utf-8"))
 
 try:
     while True:
