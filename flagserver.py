@@ -196,7 +196,9 @@ def service_connection(key, event):
                         if recip_uname[0] != data.uname:
                             append_output_buffer(recip_uname[0],data.uname, json.dumps(req))
                     
-                    print("\nSending " + req + " to " + str(group_id) + '\n')
+                    print("\nSending ") 
+                    print(req) 
+                    print(" to " + str(group_id) + '\n')
             
         else:
             print(f"Closing connection to {data.addr}")
@@ -238,13 +240,15 @@ def service_connection(key, event):
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
 
             elif sent_req["hdr"][0] == "<":
-                if ':' in sent_req["hdr"]:
+                
+                # Group addition
+                if sent_req["hdr"][0:11]=="<roup_added":
                     client_sock.send(json.dumps(sent_req).encode("utf-8"))
 
                 else: #Messaging on a group
                     group_id = int(sent_req["hdr"][1:])
                     mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + senders_uname + ':' + pub_key, "msg":sent_req["msg"], "aes_key":sent_req["aes_key"], "time":sent_req["time"], "sign":sent_req["sign"] })
-                    client_sock.send(json.dumps(mod_data).encode("utf-8"))
+                    client_sock.send(mod_data.encode("utf-8"))
                 
                     print("\nSending " + mod_data + " to " + str(group_id) + '\n')
         
