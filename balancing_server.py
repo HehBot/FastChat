@@ -51,7 +51,8 @@ shared_cursor.close()
 shared_conn.close()
 
 def decide_server():
-    return cursor.execute("SELECT server_addr, MIN(connections) FROM servers").fetchone()[0]
+    cursor.execute("SELECT server_addr, MIN(connections) FROM servers")
+    return cursor.fetchone()[0]
 
 def accept_wrapper(sock):
     other_sock, other_addr = sock.accept()
@@ -62,7 +63,8 @@ def accept_wrapper(sock):
         data = types.SimpleNamespace(addr=req["msg"])
         sel.register(fileobj=other_sock, events=selectors.EVENT_READ, data=data)
 
-        other_servers = cursor.execute(f"SELECT server_addr FROM servers").fetchall()
+        cursor.execute(f"SELECT server_addr FROM servers")
+        other_servers = cursor.fetchall()
 
         if len(other_servers) == 0:
             other_servers = "FIRST"
