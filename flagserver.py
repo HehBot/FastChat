@@ -4,7 +4,6 @@ import selectors
 import types
 import json
 import sqlite3
-import threading
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
@@ -14,7 +13,6 @@ if len(argv) != 3:
     exit(-1)
 
 server_addr = (argv[1], int(argv[2]))
-
 server_name = argv[1] + ':' + argv[2]
 
 conn_accepting_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)

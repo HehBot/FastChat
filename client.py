@@ -246,6 +246,7 @@ try:
 
         x = input()
 
+        # Quit
         if x == 'q':
             print("Closing")
             break
