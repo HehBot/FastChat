@@ -2,8 +2,8 @@
 mkdir -p tmp1
 gnome-terminal --command="./ct tmp1 $1"
 mkdir -p tmp2
-gnome-terminal --command="./ct tmp2 $2"
+gnome-terminal --command="./ct tmp2 $1"
 mkdir -p tmp3
 gnome-terminal --command="./ct tmp3 $1"
 mkdir -p tmp4
-gnome-terminal --command="./ct tmp4 $2"
+gnome-terminal --command="./ct tmp4 $1"

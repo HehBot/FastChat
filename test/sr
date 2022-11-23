@@ -1,3 +1,2 @@
 #!/bin/sh
-gnome-terminal --command="python3 flagserver.py localhost $1"
-gnome-terminal --command="python3 flagserver.py localhost $2"
+python3 flagserver.py localhost $1

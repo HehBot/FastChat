@@ -44,90 +44,91 @@ if not dbfile:
     cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
 
 def append_output_buffer(uname, newdata):
-    # see FIXME below
     cursor.execute("UPDATE customers SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, uname))
 
 def accept_wrapper(sock):
     client_sock, client_addr = sock.accept()
     print(f"Accepted connection from client {client_addr}")
     
-    while (True):
-        req_str = client_sock.recv(1024).decode()
-        
-        print("\nLOADING :")
-        print(req_str)
-        if req_str == "":
-            continue
-        print()
-        req = json.loads(req_str)
+    req_str = client_sock.recv(1024).decode()
+    
+    print("\nLOADING :")
+    print(req_str)
+    if req_str == "":
+        client_sock.close()
+        return
+    print()
+    req = json.loads(req_str)
 
-        if (req["hdr"] == "registering"):
-            if (not verify_registering_req(req_str)):
-                print(f"Rejected attempt from client {client_addr}: Invalid registration request")
-                resp = json.dumps({ "hdr":"error:0", "msg":"Invalid registration request" })
-                client_sock.sendall(resp.encode("utf-8"))
-                continue
-            uname, pub_key, _ = req["msg"].split()
-
-            check_if_registered = cursor.execute(f"SELECT * FROM customers WHERE uname='{uname}'").fetchone()
-            if check_if_registered != None:
-                print(f"Rejected attempt from client {client_addr}: User {uname} already registered")
-                resp = json.dumps({ "hdr":"error:1", "msg":f"User {uname} already registered" })
-                client_sock.sendall(resp.encode("utf-8"))
-
-                continue
-
-            cursor.execute("INSERT INTO customers(uname, pub_key, output_buffer) VALUES('%s', '%s', '')" % (uname, pub_key))
-
-            print(f"User {uname} registered")
-            resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
-
+    if (req["hdr"] == "registering"):
+        if (not verify_registering_req(req_str)):
+            print(f"Rejected attempt from client {client_addr}: Invalid registration request")
+            resp = json.dumps({ "hdr":"error:0", "msg":"Invalid registration request" })
             client_sock.sendall(resp.encode("utf-8"))
-            data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
-            events = selectors.EVENT_READ | selectors.EVENT_WRITE
-            sel.register(fileobj=client_sock, events=events, data=data)
-            break
+            client_sock.close()
+            return
+        uname, pub_key, _ = req["msg"].split()
 
-        elif (req["hdr"] == "onboarding"):
-            uname, _ = req["msg"].split()
-
-            pub_key = cursor.execute(f"SELECT pub_key FROM customers WHERE uname='{uname}'").fetchone()[0]
-            if pub_key == None:
-                print(f"Rejected attempt from client {client_addr}: User {uname} not registered")
-                resp = json.dumps({ "hdr":"error:2", "msg":f"User {uname} not registered" })
-                client_sock.sendall(resp.encode("utf-8"))
-                continue
-            pub_key = str_to_pub_key(pub_key)
-
-            if (not verify_onboarding_req(req_str, pub_key)):
-                print(f"Rejected attempt from client {client_addr}: Invalid onboarding request")
-                resp = json.dumps({ "hdr":"error:3", "msg":"Invalid onboarding request" })
-                client_sock.sendall(resp.encode("utf-8"))
-                client_sock.close()
-                continue
-
-            print(f"User {uname} connected")
-            resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
-
+        check_if_registered = cursor.execute(f"SELECT * FROM customers WHERE uname='{uname}'").fetchone()
+        if check_if_registered != None:
+            print(f"Rejected attempt from client {client_addr}: User {uname} already registered")
+            resp = json.dumps({ "hdr":"error:1", "msg":f"User {uname} already registered" })
             client_sock.sendall(resp.encode("utf-8"))
-            data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
-            events = selectors.EVENT_READ | selectors.EVENT_WRITE
-            sel.register(fileobj=client_sock, events=events, data=data)
-            break
+            client_sock.close()
+            return
+
+        cursor.execute("INSERT INTO customers(uname, pub_key, output_buffer) VALUES('%s', '%s', '')" % (uname, pub_key))
+
+        print(f"User {uname} registered")
+        resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
+
+        client_sock.sendall(resp.encode("utf-8"))
+        data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
+        events = selectors.EVENT_READ | selectors.EVENT_WRITE
+        sel.register(fileobj=client_sock, events=events, data=data)
+
+    elif (req["hdr"] == "onboarding"):
+        uname, _ = req["msg"].split()
+
+        pub_key = cursor.execute(f"SELECT pub_key FROM customers WHERE uname='{uname}'").fetchone()[0]
+        if pub_key == None:
+            print(f"Rejected attempt from client {client_addr}: User {uname} not registered")
+            resp = json.dumps({ "hdr":"error:2", "msg":f"User {uname} not registered" })
+            client_sock.sendall(resp.encode("utf-8"))
+            client_sock.close()
+            return
+
+        pub_key = str_to_pub_key(pub_key)
+
+        if (not verify_onboarding_req(req_str, pub_key)):
+            print(f"Rejected attempt from client {client_addr}: Invalid onboarding request")
+            resp = json.dumps({ "hdr":"error:3", "msg":"Invalid onboarding request" })
+            client_sock.sendall(resp.encode("utf-8"))
+            client_sock.close()
+            return
+
+        print(f"User {uname} connected")
+        resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
+
+        client_sock.sendall(resp.encode("utf-8"))
+        data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
+        events = selectors.EVENT_READ | selectors.EVENT_WRITE
+        sel.register(fileobj=client_sock, events=events, data=data)
 
 # u is the group id
 u = 1
 def service_connection(key, event):
     client_sock = key.fileobj
     data = key.data
+    
     if event & selectors.EVENT_READ:
-
         recv_data = client_sock.recv(1024).decode("utf-8")
 
         if recv_data == "":
             print(f"Closing connection to {data.addr}")
             sel.unregister(client_sock)
             client_sock.close()
+            return
 
         data.inb += recv_data
         
@@ -177,8 +178,7 @@ def service_connection(key, event):
 
                 # Removing from a group
                 if "::" in req["hdr"][1:]:
-                    print("Hellloooo")
-                    k=req["hdr"].find(":")
+                    k = req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 2:]
                     
@@ -187,12 +187,15 @@ def service_connection(key, event):
 
                     if(is_admin == 1):
                         cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
-                        resp1=json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+
+                        resp1 = json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
                         append_output_buffer(recip_name, resp1)
-                        resp2=json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+
+                        resp2 = json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
                         group_participants = cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
                         for i in group_participants:
                             append_output_buffer(i[0], resp2)
+
                         print("\nRemoved " + recip_name + " from group " + str(group_id) + " by " + data.uname + '\n')
 
                     else: #If not admin
@@ -210,13 +213,22 @@ def service_connection(key, event):
                     is_admin = cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname)).fetchone()[0]
 
                     if(is_admin == 1):
+                        resp2 = json.dumps({"hdr":"person_added:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        group_participants = cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
+                        for i in group_participants:
+                            append_output_buffer(i[0], resp2)
+
                         cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_name, 0))
-                        resp=json.dumps({"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-                        append_output_buffer(recip_name, resp)
+
+                        resp1 = json.dumps({"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        append_output_buffer(recip_name, resp1)
+
                         print("\nAdded " + recip_name + " to group " + str(group_id) + " by " + data.uname + '\n')
 
                     else: #If not admin
+                        # TODO
                         pass
+
                 # Messaging on a group
                 else:
                     group_id = int(req["hdr"][1:])
@@ -244,7 +256,6 @@ def service_connection(key, event):
             i += 1
         
     if event & selectors.EVENT_WRITE:
-        # FIXME
         cursor.execute(f"BEGIN TRANSACTION '{server_name}'")
         output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
         cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
