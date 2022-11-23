@@ -126,7 +126,8 @@ def accept_wrapper(sock):
 
         cursor.execute("INSERT INTO customers(uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
         conn.commit()
-
+        local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s', '')" % (uname))
+        local_cursor.execute("INSERT INTO server_map(uname, serv_name) VALUES('%s', '%s')" % (uname, this_server_name))
         # Informing all servers
         server_data = json.dumps({"hdr":"reg","msg":uname})
         for i in other_servers:
@@ -217,7 +218,7 @@ def service_client_connection(key, event):
             # Response to group creating request
             elif (req["hdr"] == "grp_registering"):
                 cursor.execute("SELECT isAdmin FROM groups WHERE group_id=0")
-                u = int(cursor.fetchone()[0])
+                group_id = int(cursor.fetchone()[0])
                 cursor.execute("INSERT INTO groups(group_id, uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, data.uname, 1))
                 conn.commit()
 
@@ -226,13 +227,14 @@ def service_client_connection(key, event):
                 
                 print("\nRegistered new group with id " + str(group_id) + '\n')
 
-                cursor.execute("UPDATE groups SET isAdmin=%d WHERE group_id=0" % (u + 1))
+                cursor.execute("UPDATE groups SET isAdmin=%d WHERE group_id=0" % (group_id + 1))
                 conn.commit()
+
 
             # Personal message
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
-                mod_data = json.dumps({ "recip_name":recip_uname ,"hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+                mod_data = json.dumps({ "recip_uname":recip_uname ,"hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
 
                 serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
                 if serv==this_server_name:
@@ -249,53 +251,53 @@ def service_client_connection(key, event):
                 if "::" in req["hdr"][1:]:
                     k = req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
-                    recip_name = req["hdr"][k + 2:]
+                    recip_uname = req["hdr"][k + 2:]
                     
                     cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname))
                     is_admin = cursor.fetchone()[0]
                     # Admin removing someone else
-                    if is_admin == 1 and recip_name != data.uname:
+                    if is_admin == 1 and recip_uname != data.uname:
                         print("Removing from group")
 
-                        cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
+                        cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_uname))
                         conn.commit()
 
                         resp1 = json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-                        append_output_buffer(recip_name, resp1)
+                        append_output_buffer(recip_uname, resp1)
 
-                        resp2 = json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        resp2 = json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
                         cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                         group_participants = cursor.fetchall()
                         for i in group_participants:
                             append_output_buffer(i[0], resp2)
 
-                        print("\nRemoved " + recip_name + " from group " + str(group_id) + " by " + data.uname + '\n')
+                        print("\nRemoved " + recip_uname + " from group " + str(group_id) + " by " + data.uname + '\n')
 
                     # Admin leaving
-                    elif is_admin == 1 and recip_name == data.uname:
+                    elif is_admin == 1 and recip_uname == data.uname:
                         print("Admin may not leave group")
                         resp1 = json.dumps({"hdr":"error:5", "msg":"Admin may not leave group"})
-                        append_output_buffer(recip_name, resp1)
+                        append_output_buffer(recip_uname, resp1)
                     
                     # If not admin
                     else:
                         # Leaving the group
-                        if recip_name == data.uname:
+                        if recip_uname == data.uname:
                             print("Exiting from group")
                             
-                            cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
+                            cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_uname))
                             conn.commit()
                             resp1 = json.dumps({"hdr":"group_left:" + str(group_id), "msg":""})
-                            append_output_buffer(recip_name, resp1)
+                            append_output_buffer(recip_uname, resp1)
 
-                            resp2 = json.dumps({"hdr":"person_left:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                            resp2 = json.dumps({"hdr":"person_left:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
 
                             cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                             group_participants = cursor.fetchall()
                             for i in group_participants:
                                 append_output_buffer(i[0], resp2)
 
-                            print('\n' + recip_name + " left group " + str(group_id) + '\n')
+                            print('\n' + recip_uname + " left group " + str(group_id) + '\n')
                         
                         # Not admin and trying to remove someone else
                         else:
@@ -305,27 +307,38 @@ def service_client_connection(key, event):
                 elif ":" in req["hdr"][1:]:
                     k=req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
-                    recip_name = req["hdr"][k + 1:]
+                    recip_uname = req["hdr"][k + 1:]
                     
                     print("TRYING TO ADD NEW PERSON")
-                    print(f"group_id: {group_id}, recip_name = {recip_name}, MyName = {data.uname}")
+                    print(f"group_id: {group_id}, recip_uname = {recip_uname}, MyName = {data.uname}")
                     
                     cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname))
                     is_admin = cursor.fetchone()[0]
                     if(is_admin == 1):
-                        resp2 = json.dumps({"hdr":"person_added:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        resp2 = {"hdr":"person_added:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
                         cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                         group_participants = cursor.fetchall()
                         for i in group_participants:
-                            append_output_buffer(i[0], resp2)
+                            serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(i[0])).fetchone()[0]
+                            if serv==this_server_name:
+                                append_output_buffer(recip_uname, json.dumps(resp2))
+                            else:
+                                resp2["send_to"]=recip_uname
+                                append_output_buffer(serv,json.dumps(resp2))
 
-                        cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_name, 0))
+                        cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_uname, 0))
                         conn.commit()
 
-                        resp1 = json.dumps({"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-                        append_output_buffer(recip_name, resp1)
+                        resp1 = {"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
+                        
+                        serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
+                        if serv==this_server_name:
+                            append_output_buffer(recip_uname, json.dumps(resp1))
+                        else:
+                            resp1["send_to"]=recip_uname
+                            append_output_buffer(serv, json.dumps(resp1))
 
-                        print("\nAdded " + recip_name + " to group " + str(group_id) + " by " + data.uname + '\n')
+                        print("\nAdded " + recip_uname + " to group " + str(group_id) + " by " + data.uname + '\n')
 
                     else: #If not admin
                         # TODO
@@ -414,8 +427,17 @@ def service_server_connection(key,event):
 
             # Personal message
             elif req["hdr"][0]=='>':
-                recip_name = req["recip_name"]
-                append_output_buffer(recip_name,json.dumps(req))
+                recip_uname = req["recip_uname"]
+                append_output_buffer(recip_uname,json.dumps(req))
+
+            #Adding to group
+            elif req["hdr"][:12] == "person_added":
+                recip_uname = req.pop("send_to")
+                append_output_buffer(recip_uname,json.dumps(req))
+            
+            elif req["hdr"][:11] == "group_added":
+                recip_uname = req.pop("send_to")
+                append_output_buffer(recip_uname,json.dumps(req))
 
 
         n = 0
