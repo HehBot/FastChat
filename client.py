@@ -54,8 +54,24 @@ if not dbfile:
             break
 
     cursor.execute("CREATE TABLE group_name_keys (group_id INTEGER NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")
-
     cursor.execute("INSERT INTO group_name_keys (group_id, group_name, group_pub_key, group_priv_key) VALUES (%d, '%s', '%s', '%s')" % (0, uname, pub_key_to_str(pub_key), priv_key_to_str(priv_key)))
+
+    print("""-----------------------------------------
+q <or> Ctrl+C
+    Exit
+!
+    Attach file
+!!
+    Detach file
+A:xyz
+    "xyz" to user A
+:G:xyz
+    "xyz" to group G
+A::xyz
+    "xyz" to user A with attached file
+:G::xyz
+    "xyz" to group G with attached file
+-----------------------------------------""")
 
 else:
     uname, pub_key, priv_key = cursor.execute("SELECT group_name, group_pub_key, group_priv_key FROM group_name_keys WHERE group_id=0").fetchone()
@@ -80,7 +96,15 @@ def listen():
     def process_data(data):
         req = json.loads(data)
 
-        if req["hdr"] == "pub_key":
+        if req["hdr"][:5] == "error":
+            code = int(req["hdr"][6:])
+            if code == 4:
+                pub_key_info[1] = True
+                pub_key_info[2] = True
+            elif code == 5:
+                print("You (admin) may not leave the group")
+        
+        elif req["hdr"] == "pub_key":
             pub_key_info[0] = str_to_pub_key(req["msg"])
             pub_key_info[1] = True
             pub_key_info[2] = False
@@ -93,32 +117,31 @@ def listen():
             group_id = int(req["hdr"].split(':')[1])
             group_name = cursor.execute("SELECT group_name_keys.group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
             cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
-            print("You have been removed from group " + group_name)
+            print(f"You were removed from {group_name}(id {group_id})")
 
         elif req["hdr"][:14] == "person_removed":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')
             sent_data = json.dumps({ "hdr":'<' + str(group_id) + "::" + person, "msg":req["msg"], "aes_key":req["aes_key"], "sign":req["sign"], "time":req["time"] })
             group_name, group_priv_key = cursor.execute("SELECT group_name, group_priv_key FROM group_name_keys WHERE group_id=%d" % (int(group_id))).fetchone()
             recv = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
+
             if recv != None:
-                print(person + " was removed from the group " + group_name)
+                print(f"{person} was removed from the group {group_name} (id {group_id})")
 
         elif req["hdr"][:10] == "group_left":
             group_id = int(req["hdr"].split(':')[1])
             group_name = cursor.execute("SELECT group_name FROM group_name_keys WHERE group_id=%d"%(group_id)).fetchone()[0]
             cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
-            print("You left the group " + group_name)
+            print(f"You left {group_name} (id {group_id})")
 
         elif req["hdr"][:11] == "person_left":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')
             sent_data = json.dumps({ "hdr":'<' + str(group_id) + "::" + person, "msg":req["msg"], "aes_key":req["aes_key"], "sign":req["sign"], "time":req["time"] })
-            
             group_name, group_priv_key = cursor.execute("SELECT group_name, group_priv_key FROM group_name_keys WHERE group_id=%d" % (int(group_id))).fetchone()
-            
             recv = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
 
             if recv != None:
-                print(person + " left the group " + group_name)
+                print(f"{person} left {group_name} (id {group_id})")
 
         elif req["hdr"][:11] == "group_added":
             group_id = int(req["hdr"].split(':')[1])
@@ -139,7 +162,7 @@ def listen():
             cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, group_pub_key, group_priv_key))
 
             print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(time))))
-            print("You have been added to " + group_name + " by " + admin_name + '\n')
+            print(f"{admin_name} added you to {group_name} (id {group_id})\n")
 
         elif req["hdr"][:12] == "person_added":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')
@@ -157,11 +180,7 @@ def listen():
                 return
 
             if valid:
-                print(person + " was added to the group " + group_name)
-
-        elif req["hdr"] == "error":
-            pub_key_info[1] = True
-            pub_key_info[2] = True
+                print(f"{person} was added to {group_name} (id {group_id})")
 
         # Personal message
         elif req["hdr"][0] == '>':
@@ -199,7 +218,7 @@ def listen():
             msg = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
 
             print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
-            print(f"Received on {group_name} from {sndr_uname}:")
+            print(f"Received on {group_name} (id {group_id}) from {sndr_uname}:")
             print("\n\t" + msg["msg"])
             
             if "file" in msg.keys():
@@ -211,7 +230,7 @@ def listen():
                 f.write(file)
                 f.close()
 
-    while(True):
+    while True:
         n = 0
         i = 0
         while i != len(input_buffer):
@@ -231,26 +250,10 @@ t1 = threading.Thread(target=listen)
 t1.daemon = True
 t1.start()
 
-"""
-q <or> Ctrl+C
-    Exit
-!
-    Attach file
-!!
-    Detach file
-A:xyz
-    "xyz" to user A
-:G:xyz
-    "xyz" to group G
-A::xyz
-    "xyz" to user A with attached file
-:G::xyz
-    "xyz" to group G with attached file
-"""
-
 try:
     attached_file_name = ""
     file = ""
+
     while True:
         if (attached_file_name != ""):
             x = attached_file_name
@@ -259,11 +262,6 @@ try:
             print(x + " -> ", end = '')
 
         x = input()
-
-        # Quit
-        if x == 'q':
-            print("Closing")
-            break
 
         # Attach file
         if x == "!":
@@ -275,96 +273,152 @@ try:
         elif x == "!!":
             attached_file_name = ""
             file = ""
-            print("Detached\n")
 
         # Sending message in the group
         elif x[0] == ':':
             x = x[1:]
             u = x.find(':')
-            group_name = x[0:u]
-            grp_info = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name ='%s'" % (group_name)).fetchone()
-            if grp_info:
-                group_id, group_pub_key, group_priv_key = grp_info
+            group_name = x[:u]
+            group_info = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name ='%s'" % (group_name)).fetchall()
+
+            if group_info != None:
+                if len(group_info) == 1:
+                    group_info = group_info[0]
+                else:
+                    while len(group_info) > 1:
+                        ids = [x[0] for x in group_info]
+                        print("Select group_id from " + str(ids))
+                        i = int(input())
+                        if i in ids:
+                            group_info = group_info[ids.index(i)]
+                            break
+                        else:
+                            continue
+                
+                group_id, group_pub_key, group_priv_key = group_info
+                
                 group_pub_key = str_to_pub_key(group_pub_key)
                 group_priv_key = str_to_priv_key(group_priv_key)
 
                 msg = x[u + 1:]
                 req = { "hdr":"<" + str(group_id), "msg":msg, "time": str(time())}
 
-                if (file != ""):
+                if file != "":
                     req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
+                    attached_file_name = ""
+                    file = ""
 
                 enc_req = encrypt_e2e_req(req, group_pub_key, priv_key)
                 client_sock.sendall(enc_req.encode("utf-8"))
+            else:
+                print(f"You are not a member of group {group_name}")
 
-        # Group operations
         elif x == '':
             continue
 
+        # Group operations
         elif x[0]=='$':
-
             # Removing people from group
             if "::" in x:
                 x = x[1:]
                 u = x.find(':')
                 group_name = x[:u]
-                group_id, group_pub_key, group_priv_key = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name = '%s'" % (group_name)).fetchone()
-                if len(x) > u + 2:
-                    recip_uname = x[u + 2:]
+                
+                group_info = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name = '%s'" % (group_name)).fetchall()
+
+                if group_info != None:
+                    if len(group_info) == 1:
+                        group_info = group_info[0]
+                    else:
+                        while len(group_info) > 1:
+                            ids = [x[0] for x in group_info]
+                            print("Select group_id from " + str(ids))
+                            i = int(input())
+                            if i in ids:
+                                group_info = group_info[ids.index(i)]
+                                break
+                            else:
+                                continue
+
+                    group_id, group_pub_key, group_priv_key = group_info
+
+                    if len(x) > u + 2:
+                        recip_uname = x[u + 2:]
+                    else:
+                        recip_uname = uname
+                    req = { "hdr":"<" + str(group_id) + "::" + recip_uname, "msg":'', "time": str(time()) }
+                    enc_req = encrypt_e2e_req(req, str_to_pub_key(group_pub_key), priv_key)
+                    client_sock.sendall(enc_req.encode("utf-8"))
                 else:
-                    recip_uname = uname
-                req = { "hdr":"<" + str(group_id) + "::" + recip_uname, "msg":'', "time": str(time()) }
-                enc_req = encrypt_e2e_req(req, str_to_pub_key(group_pub_key), priv_key)
-                client_sock.sendall(enc_req.encode("utf-8"))
+                    print(f"You are not a member of group {group_name}")
 
             # Adding people in the group
             elif ":" in x:
                 x = x[1:]
                 u = x.find(':')
                 group_name = x[:u]
-                group_id, group_pub_key, group_priv_key = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name = '%s'" % (group_name)).fetchone()
-                recip_uname = x[u + 1:]
 
-                pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname, "time": str(time()) })
-                client_sock.sendall(pub_key_req.encode("utf-8"))
+                group_info = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name = '%s'" % (group_name)).fetchall()
 
-                while (not pub_key_info[1]):
-                    continue
-                pub_key_info[1] = False
+                if group_info != None:
+                    if len(group_info) == 1:
+                        group_info = group_info[0]
+                    else:
+                        while len(group_info) > 1:
+                            ids = [x[0] for x in group_info]
+                            print("Select group_id from " + str(ids))
+                            i = int(input())
+                            if i in ids:
+                                group_info = group_info[ids.index(i)]
+                                break
+                            else:
+                                continue
+                    
+                    group_id, group_pub_key, group_priv_key = group_info
+                    recip_uname = x[u + 1:]
 
-                if pub_key_info[2]:
-                    print(f"User {recip_uname} not registered")
-                    pub_key_info[2] = False
-                    continue
+                    pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname, "time": str(time()) })
+                    client_sock.sendall(pub_key_req.encode("utf-8"))
 
-                msg = group_name + ":" + group_pub_key + " " + group_priv_key
-                req = { "hdr":"<" + str(group_id) + ":" + recip_uname, "msg":msg, "time": str(time())}
+                    while not pub_key_info[1]:
+                        continue
+                    pub_key_info[1] = False
 
-                enc_req = encrypt_e2e_req(req, pub_key_info[0], priv_key)
-                client_sock.sendall(enc_req.encode("utf-8"))
+                    if pub_key_info[2]:
+                        print(f"User {recip_uname} not registered")
+                        pub_key_info[2] = False
+                        continue
 
-                print("\nAdded "+ recip_uname +" to the group "+ group_name + '\n')
+                    msg = group_name + ":" + group_pub_key + " " + group_priv_key
+                    req = { "hdr":"<" + str(group_id) + ":" + recip_uname, "msg":msg, "time": str(time())}
+
+                    enc_req = encrypt_e2e_req(req, pub_key_info[0], priv_key)
+                    client_sock.sendall(enc_req.encode("utf-8"))
+                else:
+                    print(f"You are not a member of group {group_name}")
 
             # Creating new group
             else :
                 group_name = x[1:]
 
-                group_pub_key, group_priv_key = newkeys(512)
+                if ':' in group_name:
+                    print("Group name may not contain ':'")
+                else:
+                    group_pub_key, group_priv_key = newkeys(512)
 
-                # May need to change encyrption here
-                msg = ""
-                req = { "hdr":"grp_registering", "msg":msg, "time": str(time())}
-                enc_req = encrypt_e2e_req(req, group_pub_key, group_priv_key)
-                client_sock.sendall(enc_req.encode("utf-8"))
+                    msg = ""
+                    req = { "hdr":"grp_registering", "msg":msg, "time": str(time())}
+                    enc_req = encrypt_e2e_req(req, group_pub_key, group_priv_key)
+                    client_sock.sendall(enc_req.encode("utf-8"))
 
-                while (not grp_registering_info[1]):
-                    continue
-                grp_registering_info[1] = False
-                group_id = grp_registering_info[0]
+                    while (not grp_registering_info[1]):
+                        continue
+                    grp_registering_info[1] = False
+                    group_id = grp_registering_info[0]
 
-                cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, pub_key_to_str(group_pub_key), priv_key_to_str(group_priv_key)) )
+                    cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, pub_key_to_str(group_pub_key), priv_key_to_str(group_priv_key)) )
 
-                print("\nCreated new group "+ group_name + " with id " + str(group_id) + '\n')
+                    print(f"\nCreated new group {group_name} with id {group_id}\n")
 
         # Personal message
         else:
@@ -390,12 +444,13 @@ try:
 
             if file != "":
                 req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
+                attached_file_name = ""
+                file = ""
 
             enc_req = encrypt_e2e_req(req, pub_key_info[0], priv_key)
             client_sock.sendall(enc_req.encode("utf-8"))
-
 except KeyboardInterrupt:
-    print("Caught keyboard interrupt, closing")
+    print("Closing")
 
 client_sock.close()
 conn.commit()
