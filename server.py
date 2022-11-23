@@ -15,7 +15,7 @@ if len(argv) != 5:
 
 server_addr = (argv[1], int(argv[2]))
 balancing_server_addr = (argv[3], int(argv[4]))
-
+this_server_name = argv[1]+':'+argv[2]
 sel = selectors.DefaultSelector()
 
 balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -221,9 +221,13 @@ def service_client_connection(key, event):
             # Personal message
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
-                mod_data = json.dumps({ "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+                mod_data = json.dumps({ "recip_name":recip_uname ,"hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
 
-                append_output_buffer(recip_uname, mod_data)
+                serv = local_cursor.execute("SELECT serv_name FROM servermap WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
+                if serv==this_server_name:
+                    append_output_buffer(recip_uname, mod_data)
+                else:
+                    append_output_buffer(serv,mod_data)
 
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
            
@@ -363,6 +367,7 @@ def service_server_connection(key,event):
             print()
             req = json.loads(json_string)
 
+            # Registration
             if req["hdr"] == "reg":
                 new_person = req["msg"]
                 local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s', '')" % (new_person))
@@ -370,6 +375,8 @@ def service_server_connection(key,event):
                 print()
                 print(f'ADDED new user {new_person} to server {data.uname}')
                 print()
+
+            # Onboarding
             elif req["hdr"]=="onb":                                                
                 new_person = req["person"]
                 local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(data.uname,new_person))
@@ -378,8 +385,14 @@ def service_server_connection(key,event):
                 # forward this directly to next server 
                 append_output_buffer(new_person,output_buffer)
                 print()
-                print(f'ADDED new user {new_person} to server {data.uname}')
+                print(f'User {new_person} is online on server {data.uname}')
                 print()
+
+            # Personal message
+            elif req["hdr"][0]=='>':
+                recip_name = req["recip_name"]
+                append_output_buffer(recip_name,json.dumps(req))
+
 
         n = 0
         i = 0
