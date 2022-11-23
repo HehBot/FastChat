@@ -22,7 +22,8 @@ balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 balancing_server_sock.connect(balancing_server_addr)
 
 sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=types.SimpleNamespace(sock_type="balancing_server_sock", uname=":balance_serv:"))
-balancing_server_sock.sendall(b"server")
+init_req = json.dumps({ "hdr":"server", "msg":argv[1] + ':' + argv[2] })
+balancing_server_sock.sendall(init_req.encode("utf-8"))
 
 print(f"Connected to balancing server at {balancing_server_addr}")
 
@@ -34,10 +35,13 @@ if other_servers[0] != "FIRST":
         
         other_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         other_server_sock.connect(other_server_addr)
+        print(f"Sent connection request to server {i}")
 
-        other_server_sock.sendall(json.dumps({"hdr":"server"}))
+        other_server_sock.sendall(json.dumps({"hdr":"server", "msg":argv[1] +':' + argv[2]}).encode("utf-8"))
+
         data = types.SimpleNamespace(sock_type="server_sock", addr=other_server_addr, inb="", uname=i)
-        sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
+
+        sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 
 conn_accepting_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 conn_accepting_sock.bind(server_addr)
@@ -66,6 +70,7 @@ if not dbfile:
     cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, PRIMARY KEY(uname))")
     cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
     cursor.execute("INSERT INTO groups(group_id,uname,isAdmin) (0,':',1 )")
+
     local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
     local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL,serv_name TEXT)")
 
@@ -89,16 +94,17 @@ def accept_wrapper(sock):
     
     print("\nLOADING :")
     print(req_str)
+    
     if req_str == "":
         client_sock.close()
         return
-    print()
 
     req = json.loads(req_str)
 
     if req["hdr"] == "server":
-        data = types.SimpleNamespace(sock_type="server_sock", addr=client_addr, inb="")
-        other_servers.append(client_addr[0]+':'+str(client_addr[1]))
+        data = types.SimpleNamespace(sock_type="server_sock", addr=client_addr, inb="", uname=req["msg"])
+        other_servers.append(req["msg"])
+        print(f"Accepted connection from server {req['msg']}")
         sel.register(fileobj=client_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 
     elif req["hdr"] == "registering":
@@ -121,9 +127,9 @@ def accept_wrapper(sock):
         cursor.execute("INSERT INTO customers(uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
 
         # Informing all servers
-        server_data = json.dumps({"hdr":"reg","person":uname})
+        server_data = json.dumps({"hdr":"reg","msg":uname})
         for i in other_servers:
-            append_output_buffer(i,server_data)
+            append_output_buffer(i, server_data)
 
         print(f"User {uname} registered")
         resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
@@ -152,19 +158,19 @@ def accept_wrapper(sock):
             client_sock.sendall(resp.encode("utf-8"))
             client_sock.close()
             return
+
         # Informing all servers
         server_data = json.dumps({"hdr":"onb","person":uname})
         for i in other_servers:
-            append_output_buffer(i,server_data)
+            append_output_buffer(i, server_data)
 
         print(f"User {uname} connected")
         resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
 
         client_sock.sendall(resp.encode("utf-8"))
-        data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
+        data = types.SimpleNamespace(addr=client_addr, sock_type="client_sock", inb="", uname=uname)
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
-
 
 def service_client_connection(key, event):
     client_sock = key.fileobj
@@ -209,9 +215,8 @@ def service_client_connection(key, event):
                 client_sock.sendall(resp.encode("utf-8"))
                 
                 print("\nRegistered new group with id " + str(group_id) + '\n')
-                
-                u = u + 1
-                cursor.execute("UPDATE groups SET isAdmin=%d WHERE group_id=0"%(u))
+
+                cursor.execute("UPDATE groups SET isAdmin=%d WHERE group_id=0" % (u + 1))
 
             # Personal message
             elif req["hdr"][0] == ">":
@@ -335,10 +340,9 @@ def service_client_connection(key, event):
     if event & selectors.EVENT_WRITE:
         output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
         
-        if output_buffer != None:
+        if output_buffer != None and output_buffer[0] != '':
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             client_sock.sendall(output_buffer[0].encode("utf-8"))
-
 
 def service_server_connection(key,event):
     server_sock = key.fileobj
@@ -359,14 +363,14 @@ def service_server_connection(key,event):
             print()
             req = json.loads(json_string)
 
-            if req["hdr"]=="reg":
-                new_person = req["person"]
-                local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s','')"%(new_person))
-                local_cursor.execute("INSERT INTO server_map(uname, serv_name) VALUES('%s','%s')"%(new_person,data.uname))
+            if req["hdr"] == "reg":
+                new_person = req["msg"]
+                local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s', '')" % (new_person))
+                local_cursor.execute("INSERT INTO server_map(uname, serv_name) VALUES('%s', '%s')" % (new_person, data.uname))
                 print()
                 print(f'ADDED new user {new_person} to server {data.uname}')
                 print()
-            elif req["hdr"]=="onb":
+            elif req["hdr"]=="onb":                                                
                 new_person = req["person"]
                 local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(data.uname,new_person))
                 output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{new_person}'").fetchone()
@@ -376,6 +380,7 @@ def service_server_connection(key,event):
                 print()
                 print(f'ADDED new user {new_person} to server {data.uname}')
                 print()
+
         n = 0
         i = 0
         while i != len(data.inb):
@@ -392,9 +397,10 @@ def service_server_connection(key,event):
 
     if event & selectors.EVENT_WRITE:
         output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
-        if output_buffer != None:
+        if output_buffer != None and output_buffer[0] != '':
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             server_sock.sendall(output_buffer[0].encode("utf-8"))
+#        print("heh")
 
 
 def service_balancing_server_connection(key,event):
@@ -402,7 +408,7 @@ def service_balancing_server_connection(key,event):
     data=key.data
     if event & selectors.EVENT_WRITE:
         output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
-        if output_buffer != None:
+        if output_buffer != None and output_buffer[0] != '':
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             balancing_server_sock.sendall(output_buffer[0].encode("utf-8"))
 

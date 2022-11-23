@@ -41,8 +41,8 @@ def accept_wrapper(sock):
     other_sock, other_addr = sock.accept()
     print(f"Accepted connection from {other_addr}")
     
-    req_str = other_sock.recv(1024).decode("utf-8")
-    if req_str == "server":
+    req = json.loads(other_sock.recv(1024).decode("utf-8"))
+    if req["hdr"] == "server":
         data = types.SimpleNamespace(addr=other_addr)
         sel.register(fileobj=other_sock, events=selectors.EVENT_READ, data=data)
 
@@ -55,11 +55,11 @@ def accept_wrapper(sock):
         else:
             other_sock.sendall(b"FIRST")
 
-        cursor.execute(f"INSERT INTO servers (server_addr, connections) VALUES ('{other_addr[0] + ':' + str(other_addr[1])}', 0)")
+        cursor.execute(f"INSERT INTO servers (server_addr, connections) VALUES ('{req['msg']}', 0)")
         print(f"\tAdded {other_addr} as a server")
 
-    elif req_str == "client":
-        server_adr = decide_server().encode("utf-8")
+    elif req["hdr"] == "client":
+        server_addr = decide_server()
         other_sock.sendall(server_addr.encode("utf-8"))
         cursor.execute(f"UPDATE servers SET connections=connections+1 WHERE server_addr='{server_addr[0] + ':' + str(server_addr[1])}'")
         other_sock.close()
@@ -68,7 +68,7 @@ def service_connection(key, event):
     server_sock = key.fileobj
     server_addr=key.data.addr
 
-    recv_data = json.dumps(server_sock.recv(1024).decode("utf-8"))
+    recv_data = json.loads(server_sock.recv(1024).decode("utf-8"))
     if recv_data["hdr"] == "client_disconnected":
         cursor.execute(f"UPDATE servers SET connections=connections-1 WHERE server_addr='{server_addr[0] + ':' + str(server_addr[1])}'")
 
