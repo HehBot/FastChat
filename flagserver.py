@@ -4,6 +4,7 @@ import selectors
 import types
 import json
 import sqlite3
+import psycopg2
 
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
@@ -27,22 +28,33 @@ sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None
 # dbfile stores whether the database file exists or not
 dbfile = True
 try:
-    f = open("fastchat.db", 'r')
+    f = open("localfastchat.db", 'r')
     f.close()
 except:
     dbfile = False
 
-conn = sqlite3.connect("fastchat.db", isolation_level=None)
-cursor = conn.cursor()
-cursor.execute("PRAGMA journal_mode=wal")
+conn = sqlite3.connect("localfastchat.db", isolation_level=None)
+local_cursor = conn.cursor()
+conn1 = sqlite3.connect("fastchat.db", isolation_level=None)
+cursor = conn1.cursor()
+#cursor.execute("PRAGMA journal_mode=wal")
 
 
 if not dbfile:
-    cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
+    cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, PRIMARY KEY(uname))")
     cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
+    local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
 
 def append_output_buffer(uname, newdata):
-    cursor.execute("UPDATE customers SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, uname))
+    print()
+    print(f'ADDING TO OUTPUT BUFFER {newdata} of {uname}')
+    print()
+    is_present = local_cursor.execute("SELECT uname FROM local_buffer WHERE uname = '%s'"%(uname)).fetchone()
+    print(is_present)
+    if is_present==None:
+        local_cursor.execute("INSERT INTO local_buffer(uname,output_buffer) VALUES('%s','%s')" % (uname,newdata))
+    else:
+        local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, uname))
 
 def accept_wrapper(sock):
     client_sock, client_addr = sock.accept()
@@ -75,7 +87,7 @@ def accept_wrapper(sock):
             client_sock.close()
             return
 
-        cursor.execute("INSERT INTO customers(uname, pub_key, output_buffer) VALUES('%s', '%s', '')" % (uname, pub_key))
+        cursor.execute("INSERT INTO customers(uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
 
         print(f"User {uname} registered")
         resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
@@ -141,7 +153,7 @@ def service_connection(key, event):
             # Response to public key request
             if (req["hdr"] == "pub_key"):
                 resp = None
-                pub_key_output_buffer = cursor.execute("SELECT pub_key, output_buffer FROM customers WHERE uname='%s'" % (req["msg"])).fetchone()
+                pub_key_output_buffer = cursor.execute("SELECT pub_key FROM customers WHERE uname='%s'" % (req["msg"])).fetchone()
                 if pub_key_output_buffer == None:
                     resp = { "hdr":"error:4", "msg":f"User {req['msg']} not registered" }
                 else:
@@ -282,11 +294,11 @@ def service_connection(key, event):
             i += 1
         
     if event & selectors.EVENT_WRITE:
-        cursor.execute(f"BEGIN TRANSACTION '{server_name}'")
-        output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
-        cursor.execute(f"UPDATE customers SET output_buffer='' WHERE uname='{data.uname}'")
-        cursor.execute(f"END TRANSACTION '{server_name}'")
-        client_sock.sendall(output_buffer.encode("utf-8"))
+        output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
+        
+        if output_buffer!=None:
+            local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
+            client_sock.sendall(output_buffer[0].encode("utf-8"))
 
 try:
     while True:
