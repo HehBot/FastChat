@@ -88,9 +88,18 @@ else:
     priv_key = str_to_priv_key(priv_key)
 
     req = create_onboarding_req(uname, time(), pub_key, priv_key)
-    client_sock.connect(server_addr)
-    client_sock.sendall(req.encode("utf-8"))
+    
+    initial_client_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    initial_client_sock.connect(server_addr)
+    initial_client_sock.sendall(json.dumps( {"hdr":"client"} ).encode("utf-8"))
 
+    new_addr = initial_client_sock.recv(1024).decode("utf-8").split(':')
+    initial_client_sock.close()
+
+    new_addr = (new_addr[0], int(new_addr[1]))
+    client_sock.connect(new_addr)
+    client_sock.sendall(req.encode("utf-8"))
+    
     resp = json.loads(client_sock.recv(1024).decode())
 
     print(resp["msg"])

@@ -55,13 +55,13 @@ def accept_wrapper(sock):
         else:
             other_sock.sendall(b"FIRST")
 
-        cursor.execute(f"INSERT INTO servers (server_addr, connections) VALUES ('{req['msg']}', 0)")
+        cursor.execute("INSERT INTO servers (server_addr, connections) VALUES ('" + req['msg'] + "', 0)")
         print(f"\tAdded {other_addr} as a server")
 
     elif req["hdr"] == "client":
         server_addr = decide_server()
         other_sock.sendall(server_addr.encode("utf-8"))
-        cursor.execute(f"UPDATE servers SET connections=connections+1 WHERE server_addr='{server_addr[0] + ':' + str(server_addr[1])}'")
+        cursor.execute(f"UPDATE servers SET connections=connections+1 WHERE server_addr='{server_addr}'")
         other_sock.close()
 
 def service_connection(key, event):

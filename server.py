@@ -69,7 +69,7 @@ cursor = conn1.cursor()
 if not dbfile:
     cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, PRIMARY KEY(uname))")
     cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
-    cursor.execute("INSERT INTO groups(group_id,uname,isAdmin) (0,':',1 )")
+    cursor.execute("INSERT INTO groups(group_id, uname, isAdmin) VALUES (0, ':', 1)")
 
     local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
     local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL,serv_name TEXT)")
