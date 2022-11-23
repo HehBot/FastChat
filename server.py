@@ -67,7 +67,7 @@ except:
 local_conn = sqlite3.connect("localfastchat.db", isolation_level=None)
 local_cursor = local_conn.cursor()
 conn = psycopg2.connect(dbname=psql_dbname, user=psql_uname, password=psql_pwd)
-cursor = psycopg2.connect(dbname=psql_dbname, user=psql_uname, password=psql_pwd).cursor()
+cursor = conn.cursor()
 
 if not dbfile:
     local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
@@ -230,7 +230,7 @@ def service_client_connection(key, event):
                 recip_uname = req["hdr"][1:]
                 mod_data = json.dumps({ "recip_name":recip_uname ,"hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
 
-                serv = local_cursor.execute("SELECT serv_name FROM servermap WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
+                serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
                 if serv==this_server_name:
                     append_output_buffer(recip_uname, mod_data)
                 else:

@@ -1,1 +1,4 @@
+#!/bin/bash
+
+sudo -u postgres psql -U 'postgres' -d 'fastchat' -c 'delete from customers; delete from groups;'
 rm -rf *.db* server*/ client*/
