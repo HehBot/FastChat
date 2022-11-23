@@ -74,9 +74,9 @@ def listen():
         i = 0
         
         def process_data(data):
-            print()
-            print(f'Will process {data}')
-            print()
+            # print()
+            # print(f'Will process {data}')
+            # print()
             req = json.loads(data)
 
             if req["hdr"] == "pub_key":

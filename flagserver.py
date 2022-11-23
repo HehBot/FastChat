@@ -81,7 +81,7 @@ def listen_to_server():
                 append_output_buffer(recip_uname,senders_name,json.dumps(req))
             elif req["hdr"]=="onboarding":
                 output_list = output_buffer_map[senders_name]
-                name_to_server[senders_name]=this_server_name
+                name_to_server[senders_name]=new_server_name
                 for i in output_list:
                     append_output_buffer(new_server_name,i[0],i[1])
                 print(f'{senders_name} has come online on server {new_server_name}')
@@ -295,6 +295,7 @@ def service_connection(key, event):
         # output_buffer = cursor.execute(f"SELECT output_buffer FROM customers WHERE uname='{data.uname}'").fetchone()[0]
         # output_list = ast.literal_eval(output_buffer)
         output_list = output_buffer_map[data.uname]
+        output_buffer_map[data.uname]=[]
         for i in output_list:
             print()
             print("OUTPUT BUFFER HAS")
@@ -342,7 +343,7 @@ def service_connection(key, event):
                 
                     print("\nSending " + mod_data + " to " + str(group_id) + '\n')
         
-        output_buffer_map[data.uname]=[]
+        
         #cursor.execute(f"UPDATE customers SET output_buffer='[]' WHERE uname='{data.uname}'")
 
 
@@ -355,6 +356,7 @@ def server_connection(key,event):
     if event & selectors.EVENT_WRITE:
 
         output_list = output_buffer_map[data.uname]
+        output_buffer_map[data.uname] = []
         for i in output_list:
             resp = json.loads(i[1])
             resp["sender"] = i[0]
@@ -365,8 +367,7 @@ def server_connection(key,event):
             server_sock.sendall(json.dumps(resp).encode("utf-8"))
             
 
-        output_buffer_map[data.uname] = []
-argv[4]
+
 try:
     while True:
         events = sel.select(timeout=None)
