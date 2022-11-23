@@ -152,7 +152,7 @@ def accept_wrapper(sock):
             client_sock.close()
             return
     
-        pub_key = str_to_pub_key(pub_key.fetchone()[0])
+        pub_key = str_to_pub_key(pub_key[0])
 
         if (not verify_onboarding_req(req_str, pub_key)):
             print(f"Rejected attempt from client {client_addr}: Invalid onboarding request")
@@ -162,7 +162,7 @@ def accept_wrapper(sock):
             return
 
         # Informing all servers
-        server_data = json.dumps({"hdr":"onb","person":uname})
+        server_data = json.dumps({"hdr":"onb","msg":uname})
         for i in other_servers:
             append_output_buffer(i, server_data)
 
@@ -183,6 +183,10 @@ def service_client_connection(key, event):
 
         if recv_data == "":
             print(f"Closing connection to {data.addr}")
+            # Informing all servers 
+            server_data = json.dumps({"hdr":"left","msg":data.uname})
+            for i in other_servers:
+                append_output_buffer(i, server_data)
             sel.unregister(client_sock)
             client_sock.close()
             return
@@ -280,7 +284,7 @@ def service_client_connection(key, event):
                             print("Exiting from group")
                             
                             cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
-
+                            conn.commit()
                             resp1 = json.dumps({"hdr":"group_left:" + str(group_id), "msg":""})
                             append_output_buffer(recip_name, resp1)
 
@@ -391,14 +395,21 @@ def service_server_connection(key,event):
 
             # Onboarding
             elif req["hdr"]=="onb":                                                
-                new_person = req["person"]
+                new_person = req["msg"]
                 local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(data.uname,new_person))
-                output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{new_person}'").fetchone()
-                local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
+                output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{new_person}'").fetchone()[0]
+                local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{new_person}'")
                 # forward this directly to next server 
-                append_output_buffer(new_person,output_buffer)
+                append_output_buffer(data.uname,output_buffer) 
                 print()
                 print(f'User {new_person} is online on server {data.uname}')
+                print()
+
+            elif req["hdr"]=="left":
+                left_person = req["msg"]
+                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(this_server_name,left_person))
+                print()
+                print(f'User {left_person} went offline from server {data.uname}')
                 print()
 
             # Personal message
