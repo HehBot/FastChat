@@ -21,7 +21,7 @@ sel = selectors.DefaultSelector()
 balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 balancing_server_sock.connect(balancing_server_addr)
 
-sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=types.SimpleNamespace(sock_type="balancing_server_sock"))
+sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=types.SimpleNamespace(sock_type="balancing_server_sock", uname=":balance_serv:"))
 balancing_server_sock.sendall(b"server")
 
 print(f"Connected to balancing server at {balancing_server_addr}")
@@ -36,7 +36,7 @@ if other_servers[0] != "FIRST":
         other_server_sock.connect(other_server_addr)
 
         other_server_sock.sendall(json.dumps({"hdr":"server"}))
-        data = types.SimpleNamespace(sock_type="server_sock", addr=other_server_addr, inb="")
+        data = types.SimpleNamespace(sock_type="server_sock", addr=other_server_addr, inb="", uname=i)
         sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 
 conn_accepting_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -66,6 +66,7 @@ if not dbfile:
     cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, PRIMARY KEY(uname))")
     cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
     local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
+    local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL,serv_name TEXT)")
 
 def append_output_buffer(uname, newdata):
     print()
@@ -96,6 +97,7 @@ def accept_wrapper(sock):
 
     if req["hdr"] == "server":
         data = types.SimpleNamespace(sock_type="server_sock", addr=client_addr, inb="")
+        other_servers.append(client_addr[0]+':'+str(client_addr[1]))
         sel.register(fileobj=client_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 
     elif req["hdr"] == "registering":
@@ -117,6 +119,9 @@ def accept_wrapper(sock):
 
         cursor.execute("INSERT INTO customers(uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
 
+        server_data = json.dumps({"hdr":"reg","person":uname})
+        for i in other_servers:
+            append_output_buffer(i,server_data)
         print(f"User {uname} registered")
         resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
 
@@ -327,6 +332,61 @@ def service_client_connection(key, event):
         if output_buffer != None:
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             client_sock.sendall(output_buffer[0].encode("utf-8"))
+def service_server_connection(key,event):
+    server_sock = key.fileobj
+    data = key.data
+    if event & selectors.EVENT_READ:
+        recv_data = server_sock.recv(1024).decode("utf-8")
+        if recv_data == "":
+            print(f"Closing connection to {data.addr}")
+            sel.unregister(server_sock)
+            server_sock.close()
+            return
+
+        data.inb += recv_data
+        
+        def process_server_data(json_string):
+            print("\nLOADS for server ")
+            print(json_string)
+            print()
+            req = json.loads(json_string)
+
+            if req["hdr"]=="reg":
+                new_person = req["person"]
+                local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s','')"%(new_person))
+                local_cursor.execute("INSERT INTO server_map(uname, serv_name) VALUES('%s','%s')"%(new_person,data.uname))
+                print()
+                print(f'ADDED new user {new_person} to server {data.uname}')
+                print()
+        n = 0
+        i = 0
+        while i != len(data.inb):
+            if data.inb[i] == '}' and n % 2 == 0:
+                json_string = data.inb[:i + 1]
+                data.inb = data.inb[i + 1:]
+                n = 0
+                i = 0
+                process_server_data(json_string)
+                continue
+            if data.inb[i] == '"' and data.inb[i - 1] != '\\':
+                n += 1
+            i += 1
+
+    if event & selectors.EVENT_WRITE:
+        output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
+        if output_buffer != None:
+            local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
+            server_sock.sendall(output_buffer[0].encode("utf-8"))
+
+
+def service_balancing_server_connection(key,event):
+    balancing_server_sock = key.fileobj
+    data=key.data
+    if event & selectors.EVENT_WRITE:
+        output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
+        if output_buffer != None:
+            local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
+            balancing_server_sock.sendall(output_buffer[0].encode("utf-8"))
 
 try:
     while True:
