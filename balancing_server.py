@@ -2,11 +2,8 @@ from sys import argv
 import socket
 import selectors
 import types
-import json
 import sqlite3
-
-import rsa
-from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
+import json
 
 if len(argv) != 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
@@ -21,17 +18,17 @@ print(f"Listening on {server_addr} as connection accepter of load-balancing serv
 conn_accepting_sock.setblocking(False)
 
 sel = selectors.DefaultSelector()
-sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from conn_accepting_sock
+sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)
 
 # dbfile stores whether the database file exists or not
 dbfile = True
 try:
-    f = open("fastchat_load_balancing_server.db", 'r')
+    f = open("fastchat_balancing_server.db", 'r')
     f.close()
 except:
     dbfile = False
 
-conn = sqlite3.connect("fastchat_load_balancing_server.db")
+conn = sqlite3.connect("fastchat_balancing_server.db")
 cursor = conn.cursor()
 
 if not dbfile:
@@ -52,7 +49,11 @@ def accept_wrapper(sock):
         other_servers = cursor.execute(f"SELECT server_addr FROM servers")
         other_servers = [x[0] + ';' for x in other_servers]
         other_servers = "".join(other_servers)[:-1]
-        other_sock.sendall(other_servers.encode("utf-8"))
+
+        if other_servers != "":
+            other_sock.sendall(other_servers.encode("utf-8"))
+        else:
+            other_sock.sendall(b"FIRST")
 
         cursor.execute(f"INSERT INTO servers (server_addr, connections) VALUES ('{other_addr[0] + ':' + str(other_addr[1])}', 0)")
         print(f"\tAdded {other_addr} as a server")
@@ -67,8 +68,8 @@ def service_connection(key, event):
     server_sock = key.fileobj
     server_addr=key.data.addr
 
-    recv_data = server_sock.recv(1024).decode("utf-8")
-    if recv_data == "client_disconnected":
+    recv_data = json.dumps(server_sock.recv(1024).decode("utf-8"))
+    if recv_data["hdr"] == "client_disconnected":
         cursor.execute(f"UPDATE servers SET connections=connections-1 WHERE server_addr='{server_addr[0] + ':' + str(server_addr[1])}'")
 
 try:

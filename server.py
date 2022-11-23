@@ -9,20 +9,42 @@ import psycopg2
 import rsa
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
 
-if len(argv) != 3:
-    print(f"Usage: {argv[0]} <server ip> <server port>")
+if len(argv) != 5:
+    print(f"Usage: {argv[0]} <server ip> <server port> <balancing server ip> <balancing server port>")
     exit(-1)
 
 server_addr = (argv[1], int(argv[2]))
-server_name = argv[1] + ':' + argv[2]
+balancing_server_addr = (argv[3], int(argv[4]))
+
+sel = selectors.DefaultSelector()
+
+balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+balancing_server_sock.connect(balancing_server_addr)
+
+sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=types.SimpleNamespace(sock_type="balancing_server_sock"))
+balancing_server_sock.sendall(b"server")
+
+print(f"Connected to balancing server at {balancing_server_addr}")
+
+other_servers = balancing_server_sock.recv(1024).decode("utf-8").split(';')
+if other_servers[0] != "FIRST":
+    for i in other_servers:
+        other_server_addr = i.split(':')
+        other_server_addr = (other_server_addr[0], int(other_server_addr[1]))
+        
+        other_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        other_server_sock.connect(other_server_addr)
+
+        other_server_sock.sendall(json.dumps({"hdr":"server"}))
+        data = types.SimpleNamespace(sock_type="server_sock", addr=other_server_addr, inb="")
+        sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 
 conn_accepting_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 conn_accepting_sock.bind(server_addr)
 conn_accepting_sock.listen()
-print(f"Listening on {server_addr} as connection accepter of flag server")
+print(f"Listening on {server_addr} as connection accepter of server")
 conn_accepting_sock.setblocking(False)
 
-sel = selectors.DefaultSelector()
 sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from conn_accepting_sock
 
 # dbfile stores whether the database file exists or not
@@ -58,7 +80,8 @@ def append_output_buffer(uname, newdata):
 
 def accept_wrapper(sock):
     client_sock, client_addr = sock.accept()
-    print(f"Accepted connection from client {client_addr}")
+    
+    print(f"Accepted connection at {client_addr}")
     
     req_str = client_sock.recv(1024).decode()
     
@@ -68,10 +91,15 @@ def accept_wrapper(sock):
         client_sock.close()
         return
     print()
+
     req = json.loads(req_str)
 
-    if (req["hdr"] == "registering"):
-        if (not verify_registering_req(req_str)):
+    if req["hdr"] == "server":
+        data = types.SimpleNamespace(sock_type="server_sock", addr=client_addr, inb="")
+        sel.register(fileobj=client_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
+
+    elif req["hdr"] == "registering":
+        if not verify_registering_req(req_str):
             print(f"Rejected attempt from client {client_addr}: Invalid registration request")
             resp = json.dumps({ "hdr":"error:0", "msg":"Invalid registration request" })
             client_sock.sendall(resp.encode("utf-8"))
@@ -93,7 +121,7 @@ def accept_wrapper(sock):
         resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
 
         client_sock.sendall(resp.encode("utf-8"))
-        data = types.SimpleNamespace(addr=client_addr, inb="", uname=uname)
+        data = types.SimpleNamespace(addr=client_addr, sock_type="client_sock", inb="", uname=uname)
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
 
@@ -127,7 +155,7 @@ def accept_wrapper(sock):
 
 # u is the group id
 u = 1
-def service_connection(key, event):
+def service_client_connection(key, event):
     client_sock = key.fileobj
     data = key.data
     
@@ -296,7 +324,7 @@ def service_connection(key, event):
     if event & selectors.EVENT_WRITE:
         output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
         
-        if output_buffer!=None:
+        if output_buffer != None:
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             client_sock.sendall(output_buffer[0].encode("utf-8"))
 
@@ -304,10 +332,14 @@ try:
     while True:
         events = sel.select(timeout=None)
         for key, event in events:
-            if key.data is None:
+            if key.data == None:
                 accept_wrapper(key.fileobj)
-            else:
-                service_connection(key, event)
+            elif key.data.sock_type == "server_sock":
+                service_server_connection(key, event)
+            elif key.data.sock_type == "client_sock":
+                service_client_connection(key, event)
+            elif key.data.sock_type == "balancing_server_sock":
+                service_balancing_server_connection(key, event)
 except KeyboardInterrupt:
     print("Caught keyboard interrupt, exiting")
 finally:
