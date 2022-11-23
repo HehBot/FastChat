@@ -57,7 +57,7 @@ if not dbfile:
     cursor.execute("INSERT INTO group_name_keys (group_id, group_name, group_pub_key, group_priv_key) VALUES (%d, '%s', '%s', '%s')" % (0, uname, pub_key_to_str(pub_key), priv_key_to_str(priv_key)))
 
     print("""-----------------------------------------
-q <or> Ctrl+C
+Ctrl+C
     Exit
 !
     Attach file
