@@ -115,7 +115,8 @@ def accept_wrapper(sock):
             return
         uname, pub_key, _ = req["msg"].split()
 
-        check_if_registered = cursor.execute(f"SELECT * FROM customers WHERE uname='{uname}'").fetchone()
+        cursor.execute(f"SELECT * FROM customers WHERE uname='{uname}'")
+        check_if_registered = cursor.fetchone()
         if check_if_registered != None:
             print(f"Rejected attempt from client {client_addr}: User {uname} already registered")
             resp = json.dumps({ "hdr":"error:1", "msg":f"User {uname} already registered" })
@@ -142,15 +143,16 @@ def accept_wrapper(sock):
     elif (req["hdr"] == "onboarding"):
         uname, _ = req["msg"].split()
 
-        pub_key = cursor.execute(f"SELECT pub_key FROM customers WHERE uname='{uname}'").fetchone()[0]
+        cursor.execute(f"SELECT pub_key FROM customers WHERE uname='{uname}'")
+        pub_key = cursor.fetchone()
         if pub_key == None:
             print(f"Rejected attempt from client {client_addr}: User {uname} not registered")
             resp = json.dumps({ "hdr":"error:2", "msg":f"User {uname} not registered" })
             client_sock.sendall(resp.encode("utf-8"))
             client_sock.close()
             return
-
-        pub_key = str_to_pub_key(pub_key)
+    
+        pub_key = str_to_pub_key(pub_key.fetchone()[0])
 
         if (not verify_onboarding_req(req_str, pub_key)):
             print(f"Rejected attempt from client {client_addr}: Invalid onboarding request")
@@ -188,8 +190,8 @@ def service_client_connection(key, event):
         data.inb += recv_data
         
         def process_data(json_string):
-            pub_key = cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (data.uname)).fetchone()[0]
-
+            cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (data.uname))
+            pub_key = cursor.fetchone()[0]
             print("\nLOADS")
             print(json_string)
             print()
@@ -198,7 +200,8 @@ def service_client_connection(key, event):
             # Response to public key request
             if (req["hdr"] == "pub_key"):
                 resp = None
-                pub_key_output_buffer = cursor.execute("SELECT pub_key FROM customers WHERE uname='%s'" % (req["msg"])).fetchone()
+                cursor.execute("SELECT pub_key FROM customers WHERE uname='%s'" % (req["msg"]))
+                pub_key_output_buffer = cursor.fetchone()
                 if pub_key_output_buffer == None:
                     resp = { "hdr":"error:4", "msg":f"User {req['msg']} not registered" }
                 else:
@@ -209,7 +212,8 @@ def service_client_connection(key, event):
 
             # Response to group creating request
             elif (req["hdr"] == "grp_registering"):
-                u = int(cursor.execute("SELECT isAdmin FROM groups WHERE group_id=0").fetchone()[0])
+                cursor.execute("SELECT isAdmin FROM groups WHERE group_id=0")
+                u = int(cursor.fetchone()[0])
                 cursor.execute("INSERT INTO groups(group_id, uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, data.uname, 1))
                 conn.commit()
 
@@ -219,6 +223,7 @@ def service_client_connection(key, event):
                 print("\nRegistered new group with id " + str(group_id) + '\n')
 
                 cursor.execute("UPDATE groups SET isAdmin=%d WHERE group_id=0" % (u + 1))
+                conn.commit()
 
             # Personal message
             elif req["hdr"][0] == ">":
@@ -242,19 +247,21 @@ def service_client_connection(key, event):
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 2:]
                     
-                    is_admin = cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname)).fetchone()[0]
-
+                    cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname))
+                    is_admin = cursor.fetchone()[0]
                     # Admin removing someone else
                     if is_admin == 1 and recip_name != data.uname:
                         print("Removing from group")
 
                         cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
+                        conn.commit()
 
                         resp1 = json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
                         append_output_buffer(recip_name, resp1)
 
                         resp2 = json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-                        group_participants = cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
+                        cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
+                        group_participants = cursor.fetchall()
                         for i in group_participants:
                             append_output_buffer(i[0], resp2)
 
@@ -279,7 +286,8 @@ def service_client_connection(key, event):
 
                             resp2 = json.dumps({"hdr":"person_left:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
 
-                            group_participants = cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
+                            cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
+                            group_participants = cursor.fetchall()
                             for i in group_participants:
                                 append_output_buffer(i[0], resp2)
 
@@ -298,11 +306,12 @@ def service_client_connection(key, event):
                     print("TRYING TO ADD NEW PERSON")
                     print(f"group_id: {group_id}, recip_name = {recip_name}, MyName = {data.uname}")
                     
-                    is_admin = cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname)).fetchone()[0]
-
+                    cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname))
+                    is_admin = cursor.fetchone()[0]
                     if(is_admin == 1):
                         resp2 = json.dumps({"hdr":"person_added:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-                        group_participants = cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
+                        cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
+                        group_participants = cursor.fetchall()
                         for i in group_participants:
                             append_output_buffer(i[0], resp2)
 
@@ -322,7 +331,8 @@ def service_client_connection(key, event):
                 else:
                     group_id = int(req["hdr"][1:])
                     mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
-                    list_of_names = cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id)).fetchall()
+                    cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id))
+                    list_of_names = cursor.fetchall()
                     if list_of_names:
                         for recip_uname in list_of_names:
                             if recip_uname[0] != data.uname:
