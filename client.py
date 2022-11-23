@@ -92,10 +92,24 @@ def listen():
         elif req["hdr"][:13] == "group_removed":
             group_id = int(req["hdr"].split(':')[1])
             group_name = cursor.execute("SELECT group_name_keys.group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
-            cursor.execute("DELETE FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id))
+            cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
             print("You have been removed from group " + group_name)
 
         elif req["hdr"][:14] == "person_removed":
+            _, group_id, person, sndr_pub_key = req["hdr"].split(':')
+            sent_data = json.dumps({ "hdr":'<' + str(group_id) + "::" + person, "msg":req["msg"], "aes_key":req["aes_key"], "sign":req["sign"], "time":req["time"] })
+            group_name, group_priv_key = cursor.execute("SELECT group_name, group_priv_key FROM group_name_keys WHERE group_id=%d" % (int(group_id))).fetchone()
+            recv = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
+            if recv != None:
+                print(person + " was removed from the group " + group_name)
+
+        elif req["hdr"][:10] == "group_left":
+            group_id = int(req["hdr"].split(':')[1])
+            group_name = cursor.execute("SELECT group_name FROM group_name_keys WHERE group_id=%d"%(group_id)).fetchone()[0]
+            cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
+            print("You left the group " + group_name)
+
+        elif req["hdr"][:11] == "person_left":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')
             sent_data = json.dumps({ "hdr":'<' + str(group_id) + "::" + person, "msg":req["msg"], "aes_key":req["aes_key"], "sign":req["sign"], "time":req["time"] })
             
@@ -104,7 +118,7 @@ def listen():
             recv = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
 
             if recv != None:
-                print(person + " was removed from the group " + group_name)
+                print(person + " left the group " + group_name)
 
         elif req["hdr"][:11] == "group_added":
             group_id = int(req["hdr"].split(':')[1])

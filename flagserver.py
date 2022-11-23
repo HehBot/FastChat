@@ -143,7 +143,7 @@ def service_connection(key, event):
                 resp = None
                 pub_key_output_buffer = cursor.execute("SELECT pub_key, output_buffer FROM customers WHERE uname='%s'" % (req["msg"])).fetchone()
                 if pub_key_output_buffer == None:
-                    resp = { "hdr":"error", "msg":f"User {req['msg']} not registered" }
+                    resp = { "hdr":"error:4", "msg":f"User {req['msg']} not registered" }
                 else:
                     pub_key = pub_key_output_buffer[0]
                     resp = { "hdr":"pub_key", "msg":pub_key }
@@ -180,10 +180,12 @@ def service_connection(key, event):
                     group_id = int(req["hdr"][1:k])
                     recip_name = req["hdr"][k + 2:]
                     
-                    print("REMOVING FROM GROUP")
                     is_admin = cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname)).fetchone()[0]
 
-                    if(is_admin == 1):
+                    # Admin removing someone else
+                    if is_admin == 1 and recip_name != data.uname:
+                        print("Removing from group")
+
                         cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
 
                         resp1 = json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
@@ -196,8 +198,34 @@ def service_connection(key, event):
 
                         print("\nRemoved " + recip_name + " from group " + str(group_id) + " by " + data.uname + '\n')
 
-                    else: #If not admin
-                        pass
+                    # Admin leaving
+                    elif is_admin == 1 and recip_name == data.uname:
+                        print("Admin may not leave group")
+                        resp1 = json.dumps({"hdr":"error:5", "msg":"Admin may not leave group"})
+                        append_output_buffer(recip_name, resp1)
+                    
+                    # If not admin
+                    else:
+                        # Leaving the group
+                        if recip_name == data.uname:
+                            print("Exiting from group")
+                            
+                            cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_name))
+
+                            resp1 = json.dumps({"hdr":"group_left:" + str(group_id), "msg":""})
+                            append_output_buffer(recip_name, resp1)
+
+                            resp2 = json.dumps({"hdr":"person_left:" + str(group_id) + ":" + recip_name + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+
+                            group_participants = cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id)).fetchall()
+                            for i in group_participants:
+                                append_output_buffer(i[0], resp2)
+
+                            print('\n' + recip_name + " left group " + str(group_id) + '\n')
+                        
+                        # Not admin and trying to remove someone else
+                        else:
+                            pass
 
                 # Adding this person to group
                 elif ":" in req["hdr"][1:]:
