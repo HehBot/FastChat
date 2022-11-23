@@ -65,6 +65,7 @@ cursor = conn1.cursor()
 if not dbfile:
     cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, PRIMARY KEY(uname))")
     cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
+    cursor.execute("INSERT INTO groups(group_id,uname,isAdmin) (0,':',1 )")
     local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
     local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL,serv_name TEXT)")
 
@@ -119,9 +120,11 @@ def accept_wrapper(sock):
 
         cursor.execute("INSERT INTO customers(uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
 
+        # Informing all servers
         server_data = json.dumps({"hdr":"reg","person":uname})
         for i in other_servers:
             append_output_buffer(i,server_data)
+
         print(f"User {uname} registered")
         resp = json.dumps({ "hdr":"registered", "msg":f"User {uname} is now registered" })
 
@@ -149,6 +152,10 @@ def accept_wrapper(sock):
             client_sock.sendall(resp.encode("utf-8"))
             client_sock.close()
             return
+        # Informing all servers
+        server_data = json.dumps({"hdr":"onb","person":uname})
+        for i in other_servers:
+            append_output_buffer(i,server_data)
 
         print(f"User {uname} connected")
         resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
@@ -158,8 +165,7 @@ def accept_wrapper(sock):
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
 
-# u is the group id
-u = 1
+
 def service_client_connection(key, event):
     client_sock = key.fileobj
     data = key.data
@@ -197,8 +203,7 @@ def service_client_connection(key, event):
 
             # Response to group creating request
             elif (req["hdr"] == "grp_registering"):
-                global u
-                group_id = u
+                u = int(cursor.execute("SELECT isAdmin FROM groups WHERE group_id=0").fetchone()[0])
                 cursor.execute("INSERT INTO groups(group_id, uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, data.uname, 1))
                 resp = json.dumps({"hdr":"group_id", "msg":str(group_id)})
                 client_sock.sendall(resp.encode("utf-8"))
@@ -206,6 +211,7 @@ def service_client_connection(key, event):
                 print("\nRegistered new group with id " + str(group_id) + '\n')
                 
                 u = u + 1
+                cursor.execute("UPDATE groups SET isAdmin=%d WHERE group_id=0"%(u))
 
             # Personal message
             elif req["hdr"][0] == ">":
@@ -332,6 +338,8 @@ def service_client_connection(key, event):
         if output_buffer != None:
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             client_sock.sendall(output_buffer[0].encode("utf-8"))
+
+
 def service_server_connection(key,event):
     server_sock = key.fileobj
     data = key.data
@@ -355,6 +363,16 @@ def service_server_connection(key,event):
                 new_person = req["person"]
                 local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s','')"%(new_person))
                 local_cursor.execute("INSERT INTO server_map(uname, serv_name) VALUES('%s','%s')"%(new_person,data.uname))
+                print()
+                print(f'ADDED new user {new_person} to server {data.uname}')
+                print()
+            elif req["hdr"]=="onb":
+                new_person = req["person"]
+                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(data.uname,new_person))
+                output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{new_person}'").fetchone()
+                local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
+                # forward this directly to next server 
+                append_output_buffer(new_person,output_buffer)
                 print()
                 print(f'ADDED new user {new_person} to server {data.uname}')
                 print()
