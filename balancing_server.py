@@ -3,6 +3,7 @@ import socket
 import selectors
 import types
 import sqlite3
+import psycopg2
 import json
 
 if len(argv) != 3:
@@ -20,7 +21,7 @@ conn_accepting_sock.setblocking(False)
 sel = selectors.DefaultSelector()
 sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)
 
-# dbfile stores whether the database file exists or not
+# dbfile stores whether the local database file exists or not
 dbfile = True
 try:
     f = open("fastchat_balancing_server.db", 'r')
@@ -34,6 +35,21 @@ cursor = conn.cursor()
 if not dbfile:
     cursor.execute("CREATE TABLE servers (server_addr TEXT NOT NULL, connections INT NOT NULL)")
 
+# Assuming database fastchat has already been created
+dbname = "fastchat"
+user = "postgres"
+password = "Hello@123"
+
+shared_conn = psycopg2.connect(dbname=dbname, user=user, password=password)
+shared_cursor = shared_conn.cursor()
+
+shared_cursor.execute("CREATE TABLE IF NOT EXISTS customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, PRIMARY KEY(uname))")
+shared_cursor.execute("CREATE TABLE IF NOT EXISTS groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname))")
+shared_cursor.execute("INSERT INTO groups (group_id, uname, isAdmin) VALUES (0, ':', 1) ON CONFLICT DO NOTHING")
+shared_conn.commit()
+shared_cursor.close()
+shared_conn.close()
+
 def decide_server():
     return cursor.execute("SELECT server_addr, MIN(connections) FROM servers").fetchone()[0]
 
@@ -43,18 +59,19 @@ def accept_wrapper(sock):
     
     req = json.loads(other_sock.recv(1024).decode("utf-8"))
     if req["hdr"] == "server":
-        data = types.SimpleNamespace(addr=other_addr)
+        data = types.SimpleNamespace(addr=req["msg"])
         sel.register(fileobj=other_sock, events=selectors.EVENT_READ, data=data)
 
-        other_servers = cursor.execute(f"SELECT server_addr FROM servers")
-        other_servers = [x[0] + ';' for x in other_servers]
-        other_servers = "".join(other_servers)[:-1]
+        other_servers = cursor.execute(f"SELECT server_addr FROM servers").fetchall()
 
-        if other_servers != "":
-            other_sock.sendall(other_servers.encode("utf-8"))
+        if len(other_servers) == 0:
+            other_servers = "FIRST"
         else:
-            other_sock.sendall(b"FIRST")
+            other_servers = "".join([x[0] + ';' for x in other_servers])[:-1]
 
+        other_servers = other_servers + '-' + dbname + '-' + user + '-' + password
+        other_sock.sendall(other_servers.encode("utf-8"))
+        
         cursor.execute("INSERT INTO servers (server_addr, connections) VALUES ('" + req['msg'] + "', 0)")
         print(f"\tAdded {other_addr} as a server")
 
@@ -66,11 +83,11 @@ def accept_wrapper(sock):
 
 def service_connection(key, event):
     server_sock = key.fileobj
-    server_addr=key.data.addr
+    server_addr = key.data.addr
 
     recv_data = json.loads(server_sock.recv(1024).decode("utf-8"))
     if recv_data["hdr"] == "client_disconnected":
-        cursor.execute(f"UPDATE servers SET connections=connections-1 WHERE server_addr='{server_addr[0] + ':' + str(server_addr[1])}'")
+        cursor.execute(f"UPDATE servers SET connections=connections-1 WHERE server_addr='{server_addr}'")
 
 try:
     while True:

@@ -1,11 +1,3 @@
-#!/bin/bash
-n=$1
-gnome-terminal --command="python3 balancing_server.py localhost $1"
-m=1
-while [[ $m -le $2 ]]; do
-    ((n++))
-    mkdir -p server$m && cd server$m
-    gnome-terminal --command="python3 ../server.py localhost $n localhost $1"
-    cd ..
-    ((m++))
-done
+#!/bin/sh
+python3 ../server.py localhost $1 localhost $2
+sleep 20

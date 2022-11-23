@@ -1,0 +1,12 @@
+#!/bin/bash
+
+gnome-terminal --command="./bs $1"
+n=$1
+m=1
+while [[ $m -le $2 ]]; do
+    ((n++))
+    mkdir -p server$m && cd server$m
+    gnome-terminal --command="../sr $n $1"
+    cd ..
+    ((m++))
+done

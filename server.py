@@ -27,7 +27,12 @@ balancing_server_sock.sendall(init_req.encode("utf-8"))
 
 print(f"Connected to balancing server at {balancing_server_addr}")
 
-other_servers = balancing_server_sock.recv(1024).decode("utf-8").split(';')
+x = balancing_server_sock.recv(1024).decode("utf-8").split('-')
+print(x)
+other_servers, psql_dbname, psql_uname, psql_pwd = x
+
+other_servers = other_servers.split(';')
+
 if other_servers[0] != "FIRST":
     for i in other_servers:
         other_server_addr = i.split(':')
@@ -59,18 +64,12 @@ try:
 except:
     dbfile = False
 
-conn = sqlite3.connect("localfastchat.db", isolation_level=None)
-local_cursor = conn.cursor()
-conn1 = sqlite3.connect("fastchat.db", isolation_level=None)
-cursor = conn1.cursor()
-#cursor.execute("PRAGMA journal_mode=wal")
-
+local_conn = sqlite3.connect("localfastchat.db", isolation_level=None)
+local_cursor = local_conn.cursor()
+conn = psycopg2.connect(dbname=psql_dbname, user=psql_uname, password=psql_pwd)
+cursor = psycopg2.connect(dbname=psql_dbname, user=psql_uname, password=psql_pwd).cursor()
 
 if not dbfile:
-    cursor.execute("CREATE TABLE customers (uname TEXT NOT NULL, pub_key TEXT NOT NULL, PRIMARY KEY(uname))")
-    cursor.execute("CREATE TABLE groups (group_id INTEGER NOT NULL, uname TEXT, isAdmin INTEGER, PRIMARY KEY (group_id, uname), FOREIGN KEY(uname) REFERENCES customers(uname))")
-    cursor.execute("INSERT INTO groups(group_id, uname, isAdmin) VALUES (0, ':', 1)")
-
     local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
     local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL,serv_name TEXT)")
 
@@ -125,6 +124,7 @@ def accept_wrapper(sock):
             return
 
         cursor.execute("INSERT INTO customers(uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
+        conn.commit()
 
         # Informing all servers
         server_data = json.dumps({"hdr":"reg","msg":uname})
@@ -211,6 +211,8 @@ def service_client_connection(key, event):
             elif (req["hdr"] == "grp_registering"):
                 u = int(cursor.execute("SELECT isAdmin FROM groups WHERE group_id=0").fetchone()[0])
                 cursor.execute("INSERT INTO groups(group_id, uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, data.uname, 1))
+                conn.commit()
+
                 resp = json.dumps({"hdr":"group_id", "msg":str(group_id)})
                 client_sock.sendall(resp.encode("utf-8"))
                 
@@ -305,6 +307,7 @@ def service_client_connection(key, event):
                             append_output_buffer(i[0], resp2)
 
                         cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_name, 0))
+                        conn.commit()
 
                         resp1 = json.dumps({"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
                         append_output_buffer(recip_name, resp1)
@@ -442,5 +445,9 @@ except KeyboardInterrupt:
 finally:
     sel.close()
     conn_accepting_sock.close()
+local_conn.commit()
 conn.commit()
+local_cursor.close()
+local_conn.close()
+local_conn.close()
 conn.close()
