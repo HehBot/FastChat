@@ -271,6 +271,14 @@ t1 = threading.Thread(target=listen)
 t1.daemon = True
 t1.start()
 
+def bigsendall(socket, barray, chunk=10000):
+    print()
+    print(len(barray))
+    for i in range((len(barray) // chunk) + 1):
+        print(barray[i * chunk:(i + 1) * chunk], end='')
+        socket.sendall(barray[i * chunk:(i + 1) * chunk])
+    print()
+
 try:
     attached_file_name = ""
     file = ""
@@ -330,7 +338,7 @@ try:
                     file = ""
 
                 enc_req = encrypt_e2e_req(req, group_pub_key, priv_key)
-                client_sock.sendall(enc_req.encode("utf-8"))
+                bigsendall(client_sock, enc_req.encode("utf-8"))
             else:
                 print(f"You are not a member of group {group_name}")
 
@@ -469,7 +477,7 @@ try:
                 file = ""
 
             enc_req = encrypt_e2e_req(req, pub_key_info[0], priv_key)
-            client_sock.sendall(enc_req.encode("utf-8"))
+            bigsendall(client_sock, enc_req.encode("utf-8"))
 except KeyboardInterrupt:
     print("Closing")
 

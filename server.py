@@ -7,7 +7,7 @@ import sqlite3
 import psycopg2
 
 import rsa
-from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
+from request import verify_registering_req, verify_onboarding_req, verify_e2e_req, pub_key_to_str, str_to_pub_key
 
 if len(argv) != 5:
     print(f"Usage: {argv[0]} <server ip> <server port> <balancing server ip> <balancing server port>")
@@ -175,6 +175,14 @@ def accept_wrapper(sock):
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
 
+def bigsendall(socket, barray, chunk=10000):
+    print()
+    print(len(barray))                                                             
+    for i in range((len(barray) // chunk) + 1):
+        print(barray[i * chunk:(i + 1) * chunk], end='')
+        socket.sendall(barray[i * chunk:(i + 1) * chunk])
+    print()
+
 def service_client_connection(key, event):
     client_sock = key.fileobj
     data = key.data
@@ -193,6 +201,7 @@ def service_client_connection(key, event):
             return
 
         data.inb += recv_data
+        print(recv_data, end = '')
 
         def process_data(json_string):
             cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (data.uname))
@@ -402,7 +411,8 @@ def service_client_connection(key, event):
 
         if output_buffer != None and output_buffer[0] != '':
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
-            client_sock.sendall(output_buffer[0].encode("utf-8"))
+            byte_output_buffer = output_buffer[0].encode("utf-8")
+            bigsendall(client_sock, byte_output_buffer)
 
 def service_server_connection(key, event):
     server_sock = key.fileobj
@@ -480,7 +490,8 @@ def service_server_connection(key, event):
         output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
         if output_buffer != None and output_buffer[0] != '':
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
-            server_sock.sendall(output_buffer[0].encode("utf-8"))
+            byte_output_buffer = output_buffer[0].encode("utf-8")
+            bigsendall(server_sock, byte_output_buffer)
 
 def service_balancing_server_connection(key,event):
     balancing_server_sock = key.fileobj
