@@ -1,12 +1,15 @@
 #!/bin/bash
 
-gnome-terminal --command="./bs $1"
-n=$1
+ip=$1
+bsport=$2
+N=$3
+currport=$bsport
+gnome-terminal --command="./bs $ip $bsport"
 m=1
-while [[ $m -le $2 ]]; do
-    ((n++))
+while [[ $m -le $N ]]; do
+    ((currport++))
     mkdir -p server$m && cd server$m
-    gnome-terminal --command="../sr $n $1"
+    gnome-terminal --command="../sr $ip $currport $bsport"
     cd ..
     ((m++))
 done

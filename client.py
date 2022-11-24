@@ -65,20 +65,24 @@ if not dbfile:
     cursor.execute("INSERT INTO group_name_keys (group_id, group_name, group_pub_key, group_priv_key) VALUES (%d, '%s', '%s', '%s')" % (0, uname, pub_key_to_str(pub_key), priv_key_to_str(priv_key)))
 
     print("""-----------------------------------------
-Ctrl+C
+<Ctrl+C>
     Exit
 !
     Attach file
 !!
     Detach file
 A:xyz
-    "xyz" to user A
+    "xyz" to user A (with file if attached)
 :G:xyz
-    "xyz" to group G
-A::xyz
-    "xyz" to user A with attached file
-:G::xyz
-    "xyz" to group G with attached file
+    "xyz" to group G (with file if attached)
+$G
+    Create group G with you as admin
+$G:A
+    Add user A to group G (if you are its admin)
+$G::A
+    Remove user A from group G (if you are its admin)
+$G1::
+    Leave group G1 (if you are not its admin)
 -----------------------------------------""")
 
 else:
@@ -132,7 +136,7 @@ def listen():
 
         elif req["hdr"][:13] == "group_removed":
             group_id = int(req["hdr"].split(':')[1])
-            group_name = cursor.execute("SELECT group_name_keys.group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
+            group_name = cursor.execute("SELECT group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
             cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
             print(f"You were removed from {group_name}(id {group_id})")
 
@@ -256,6 +260,10 @@ def listen():
                 input_buffer = input_buffer[i + 1:]
                 n = 0
                 i = 0
+                print()
+                print("processing")
+                print(data)
+                print()
                 process_data(data)
                 continue
             if input_buffer[i] == '"' and input_buffer[i - 1] != '\\':
@@ -298,7 +306,7 @@ try:
             group_name = x[:u]
             group_info = cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name ='%s'" % (group_name)).fetchall()
 
-            if group_info != None:
+            if len(group_info) != 0:
                 if len(group_info) == 1:
                     group_info = group_info[0]
                 else:
