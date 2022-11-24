@@ -333,7 +333,7 @@ def service_client_connection(key, event):
 
                         serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
 
-                        resp2["send_to"] = recip_uname
+                        resp1["send_to"] = recip_uname
                         if serv == this_server_name:
                             append_output_buffer(recip_uname, json.dumps(resp1))
                         else:
@@ -348,15 +348,21 @@ def service_client_connection(key, event):
                 # Messaging on a group
                 else:
                     group_id = int(req["hdr"][1:])
-                    mod_data = json.dumps({ "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+                    mod_data = { "hdr":'<' + str(group_id) + ':' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] }
                     cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id))
                     list_of_names = cursor.fetchall()
-                    if list_of_names:
-                        for recip_uname in list_of_names:
-                            if recip_uname[0] != data.uname:
-                                append_output_buffer(recip_uname[0], mod_data)
 
-                        print("\nSending " + mod_data + " to " + str(group_id) + '\n')
+                    for i in list_of_names:
+                        if i[0] != data.uname:
+                            mod_data["send_to"] = i[0]
+                            serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'" % (i[0])).fetchone()[0]
+                            if serv == this_server_name:
+                                append_output_buffer(i[0], json.dumps(mod_data))
+                            else:
+                                append_output_buffer(serv,json.dumps(mod_data))
+
+
+                    print("\nSending " + json.dumps(mod_data) + " to " + str(group_id) + '\n')
 
         n = 0
         i = 0
@@ -438,6 +444,10 @@ def service_server_connection(key, event):
                 append_output_buffer(recip_uname,json.dumps(req))
 
             elif req["hdr"][:11] == "group_added":
+                recip_uname = req["send_to"]
+                append_output_buffer(recip_uname,json.dumps(req))
+
+            elif req["hdr"][0]=='<':
                 recip_uname = req["send_to"]
                 append_output_buffer(recip_uname,json.dumps(req))
 
