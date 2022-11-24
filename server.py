@@ -317,12 +317,13 @@ def service_client_connection(key, event):
                         resp2 = {"hdr":"person_added:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
                         cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                         group_participants = cursor.fetchall()
+                        
+                        resp2["send_to"] = recip_uname
                         for i in group_participants:
-                            serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(i[0])).fetchone()[0]
-                            if serv==this_server_name:
+                            serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'" % (i[0])).fetchone()[0]
+                            if serv == this_server_name:
                                 append_output_buffer(recip_uname, json.dumps(resp2))
                             else:
-                                resp2["send_to"]=recip_uname
                                 append_output_buffer(serv,json.dumps(resp2))
 
                         cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_uname, 0))
@@ -331,10 +332,11 @@ def service_client_connection(key, event):
                         resp1 = {"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
 
                         serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
-                        if serv==this_server_name:
+
+                        resp2["send_to"] = recip_uname
+                        if serv == this_server_name:
                             append_output_buffer(recip_uname, json.dumps(resp1))
                         else:
-                            resp1["send_to"]=recip_uname
                             append_output_buffer(serv, json.dumps(resp1))
 
                         print("\nAdded " + recip_uname + " to group " + str(group_id) + " by " + data.uname + '\n')
@@ -420,7 +422,7 @@ def service_server_connection(key, event):
 
             elif req["hdr"] == "left":
                 left_person = req["msg"]
-                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(this_server_name, left_person))
+                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'" % (this_server_name, left_person))
                 print()
                 print(f'User {left_person} went offline from server {data.uname}')
                 print()
@@ -432,11 +434,11 @@ def service_server_connection(key, event):
 
             #Adding to group
             elif req["hdr"][:12] == "person_added":
-                recip_uname = req.pop("send_to")
+                recip_uname = req["send_to"]
                 append_output_buffer(recip_uname,json.dumps(req))
 
             elif req["hdr"][:11] == "group_added":
-                recip_uname = req.pop("send_to")
+                recip_uname = req["send_to"]
                 append_output_buffer(recip_uname,json.dumps(req))
 
 
