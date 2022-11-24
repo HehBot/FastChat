@@ -206,12 +206,12 @@ def service_client_connection(key, event):
             if (req["hdr"] == "pub_key"):
                 resp = None
                 cursor.execute("SELECT pub_key FROM customers WHERE uname='%s'" % (req["msg"]))
-                pub_key = cursor.fetchone()
-                if pub_key == None:
+                resp_pub_key = cursor.fetchone()
+                if resp_pub_key == None:
                     resp = { "hdr":"error:4", "msg":f"User {req['msg']} not registered" }
                 else:
-                    pub_key = pub_key[0]
-                    resp = { "hdr":"pub_key", "msg":pub_key }
+                    resp_pub_key = resp_pub_key[0]
+                    resp = { "hdr":"pub_key", "msg":resp_pub_key }
 
                 append_output_buffer(data.uname, json.dumps(resp))
 
