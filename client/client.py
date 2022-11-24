@@ -58,7 +58,7 @@ class Client:
 
         self.cursor.execute("CREATE TABLE group_name_keys (group_id INTEGER NOT NULL PRIMARY KEY, group_name TEXT NOT NULL, group_pub_key TEXT NOT NULL, group_priv_key TEXT NOT NULL)")
         self.cursor.execute("INSERT INTO group_name_keys (group_id, group_name, group_pub_key, group_priv_key) VALUES (%d, '%s', '%s', '%s')" % (0, uname, pub_key_to_str(pub_key), priv_key_to_str(priv_key)))
-
+        self.conn.commit()
         print("""-----------------------------------------
 <Ctrl+C>
     Exit
@@ -125,9 +125,10 @@ $G1::
 
         elif req["hdr"][:13] == "group_removed":
             group_id = int(req["hdr"].split(':')[1])
-            group_name = self.cursor.execute("SELECT group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()[0]
-            self.cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
-            print(f"You were removed from {group_name}(id {group_id})")
+            group_name = self.cursor.execute("SELECT group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()
+            if group_name != None:
+                self.cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
+                print(f"You were removed from {group_name[0]}(id {group_id})")
 
         elif req["hdr"][:14] == "person_removed":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')

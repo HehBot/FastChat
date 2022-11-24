@@ -5,7 +5,6 @@ class Balance_Server(Server_temp):
         Server_temp.__init__(self,uname,balancing_server_sock,local_cursor,this_server_name ,other_servers)
         self.sock_type="balancing_server_sock"
 
-
     def write(self):
         output_buffer = self.local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{self.uname}'").fetchone()
         if output_buffer != None and output_buffer[0] != '':

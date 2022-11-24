@@ -145,7 +145,7 @@ def accept_wrapper(sock):
 
         client_sock.sendall(resp.encode("utf-8"))
 
-        data = Server_to_Client(client_addr,uname, client_sock, local_cursor,this_server_name,cursor,conn,other_servers)
+        data = Server_to_Client(client_addr,uname, client_sock, local_cursor,this_server_name,cursor,conn,other_servers,pub_key)
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
 
@@ -179,16 +179,9 @@ def accept_wrapper(sock):
         resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
 
         client_sock.sendall(resp.encode("utf-8"))
-        data = Server_to_Client(client_addr,uname,client_sock, local_cursor,this_server_name,cursor,conn,other_servers )
+        data = Server_to_Client(client_addr,uname,client_sock, local_cursor,this_server_name,cursor,conn,other_servers,pub_key )
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
-
-        
-
-        
-
-
-    
 
 
 try:
