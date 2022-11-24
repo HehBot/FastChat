@@ -260,10 +260,6 @@ def listen():
                 input_buffer = input_buffer[i + 1:]
                 n = 0
                 i = 0
-                print()
-                print("processing")
-                print(data)
-                print()
                 process_data(data)
                 continue
             if input_buffer[i] == '"' and input_buffer[i - 1] != '\\':

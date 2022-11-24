@@ -233,7 +233,7 @@ def service_client_connection(key, event):
             # Personal message
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
-                mod_data = json.dumps({ "recip_uname":recip_uname, "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+                mod_data = json.dumps({ "send_to":recip_uname, "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
 
                 serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
                 if serv == this_server_name:
@@ -430,7 +430,7 @@ def service_server_connection(key, event):
                 local_cursor.execute("INSERT INTO local_buffer (uname, output_buffer) VALUES('%s', '')" % (new_person))
                 local_cursor.execute("INSERT INTO server_map (uname, serv_name) VALUES('%s', '%s')" % (new_person, data.uname))
                 print()
-                print(f'ADDED new user {new_person} to server {data.uname}')
+                print(f'Added new user {new_person} to server {data.uname}')
                 print()
 
             # Onboarding
@@ -452,36 +452,15 @@ def service_server_connection(key, event):
                 print(f'User {left_person} went offline from server {data.uname}')
                 print()
 
-            # Personal message
-            elif req["hdr"][0] == '>':
-                recip_uname = req["recip_uname"]
-                append_output_buffer(recip_uname,json.dumps(req))
-
-            # Third party added to group
-            elif req["hdr"][:12] == "person_added":
+            # Personal message              req["hdr"][0] == '>':
+            # Third party added to group    req["hdr"][:12] == "person_added":
+            # Recipent added to group       req["hdr"][:11] == "group_added":
+            # Third party removed           req["hdr"][:14] == "person_removed":
+            # You are removed               req["hdr"][:13] == "group_removed":
+            # Grp_message                   req["hdr"][0]=='<':
+            else:
                 recip_uname = req["send_to"]
-                append_output_buffer(recip_uname,json.dumps(req))
-            
-            # Recipent added to group
-            elif req["hdr"][:11] == "group_added":
-                recip_uname = req["send_to"]
-                append_output_buffer(recip_uname,json.dumps(req))
-            
-            # Third party removed 
-            elif req["hdr"][:14] == "person_removed":
-                recip_uname=req["send_to"]
-                append_output_buffer(recip_uname,json.dumps(req))
-            
-            # You are removed
-            elif req["hdr"][:13] == "group_removed":
-                recip_uname=req["send_to"]
-                append_output_buffer(recip_uname,json.dumps(req))
-
-            # Grp_message
-            elif req["hdr"][0]=='<':
-                recip_uname = req["send_to"]
-                append_output_buffer(recip_uname,json.dumps(req))
-
+                append_output_buffer(recip_uname, json.dumps(req))
 
         n = 0
         i = 0
