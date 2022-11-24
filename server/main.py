@@ -8,7 +8,7 @@ import sqlite3
 import psycopg2
 from server_to_server import Server_to_Server
 from server_to_client import Server_to_Client
-from balance_server import Balance_Server
+from balance_server_to_server import Balance_Server_to_Server
 
 import rsa
 sys.path.append('../')
@@ -42,7 +42,7 @@ sel = selectors.DefaultSelector()
 balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 balancing_server_sock.connect(balancing_server_addr)
 
-data_class = Balance_Server(":balance_serv:",balancing_server_sock,local_cursor,this_server_name ,[])
+data_class = Balance_Server_to_Server(":balance_serv:",balancing_server_sock,local_cursor,this_server_name ,[])
 sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=data_class)
 
 

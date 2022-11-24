@@ -1,6 +1,6 @@
 from server_temp import Server_temp
 
-class Balance_Server(Server_temp):
+class Balance_Server_to_Server(Server_temp):
     def __init__(self,uname,balancing_server_sock,local_cursor,this_server_name,other_servers ):
         Server_temp.__init__(self,uname,balancing_server_sock,local_cursor,this_server_name ,other_servers)
         self.sock_type="balancing_server_sock"
