@@ -21,6 +21,10 @@ class Client:
             self.uname, self.pub_key,self.priv_key = self.register(server_addr)
         else :
             self.uname, self.pub_key,self.priv_key = self.onboard(server_addr)
+    def destroy(self):
+        self.client_sock.close()
+        self.conn.commit()
+        self.cursor.close()
     def register(self,server_addr):
         pub_key, priv_key = newkeys(512)
 

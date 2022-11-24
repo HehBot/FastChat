@@ -65,4 +65,5 @@ try:
             
 except KeyboardInterrupt:
     print("Closing")
+    the_client.destroy()
 
