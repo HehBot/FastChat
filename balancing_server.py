@@ -87,8 +87,16 @@ def service_connection(key, event):
     server_sock = key.fileobj
     server_addr = key.data.addr
 
-    recv_data = json.loads(server_sock.recv(1024).decode("utf-8"))
-    if recv_data["hdr"] == "client_disconnected":
+    recv_data = server_sock.recv(1024).decode("utf-8")
+    
+    if recv_data == "":
+        print(f"Closing connection to {server_addr}")
+        sel.unregister(server_sock)
+        server_sock.close()
+        return
+
+    req = json.loads(recv_data)
+    if req["hdr"] == "client_disconnected":
         cursor.execute(f"UPDATE servers SET connections=connections-1 WHERE server_addr='{server_addr}'")
 
 try:

@@ -15,46 +15,7 @@ if len(argv) != 5:
 
 server_addr = (argv[1], int(argv[2]))
 balancing_server_addr = (argv[3], int(argv[4]))
-this_server_name = argv[1]+':'+argv[2]
-sel = selectors.DefaultSelector()
-
-balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-balancing_server_sock.connect(balancing_server_addr)
-
-sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=types.SimpleNamespace(sock_type="balancing_server_sock", uname=":balance_serv:"))
-init_req = json.dumps({ "hdr":"server", "msg":argv[1] + ':' + argv[2] })
-balancing_server_sock.sendall(init_req.encode("utf-8"))
-
-print(f"Connected to balancing server at {balancing_server_addr}")
-
-x = balancing_server_sock.recv(1024).decode("utf-8").split('-')
-print(x)
-other_servers, psql_dbname, psql_uname, psql_pwd = x
-
-other_servers = other_servers.split(';')
-
-if other_servers[0] != "FIRST":
-    for i in other_servers:
-        other_server_addr = i.split(':')
-        other_server_addr = (other_server_addr[0], int(other_server_addr[1]))
-        
-        other_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        other_server_sock.connect(other_server_addr)
-        print(f"Sent connection request to server {i}")
-
-        other_server_sock.sendall(json.dumps({"hdr":"server", "msg":argv[1] +':' + argv[2]}).encode("utf-8"))
-
-        data = types.SimpleNamespace(sock_type="server_sock", addr=other_server_addr, inb="", uname=i)
-
-        sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
-
-conn_accepting_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-conn_accepting_sock.bind(server_addr)
-conn_accepting_sock.listen()
-print(f"Listening on {server_addr} as connection accepter of server")
-conn_accepting_sock.setblocking(False)
-
-sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from conn_accepting_sock
+this_server_name = argv[1] + ':' + argv[2]
 
 # dbfile stores whether the database file exists or not
 dbfile = True
@@ -66,34 +27,72 @@ except:
 
 local_conn = sqlite3.connect("localfastchat.db", isolation_level=None)
 local_cursor = local_conn.cursor()
-conn = psycopg2.connect(dbname=psql_dbname, user=psql_uname, password=psql_pwd)
-cursor = conn.cursor()
 
 if not dbfile:
-    local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT)")
-    local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL,serv_name TEXT)")
+    local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
+    local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL, serv_name TEXT, PRIMARY KEY(uname))")
+
+sel = selectors.DefaultSelector()
+
+balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+balancing_server_sock.connect(balancing_server_addr)
+
+sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=types.SimpleNamespace(sock_type="balancing_server_sock", uname=":balance_serv:"))
+init_req = json.dumps({ "hdr":"server", "msg":this_server_name })
+balancing_server_sock.sendall(init_req.encode("utf-8"))
+
+print(f"Connected to balancing server at {balancing_server_addr}")
+
+other_servers, psql_dbname, psql_uname, psql_pwd = balancing_server_sock.recv(1024).decode("utf-8").split('-')
+other_servers = other_servers.split(';')
+
+if other_servers[0] != "FIRST":
+    for i in other_servers:
+        other_server_addr = i.split(':')
+        other_server_addr = (other_server_addr[0], int(other_server_addr[1]))
+
+        other_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        other_server_sock.connect(other_server_addr)
+
+        connection_req = json.dumps({ "hdr":"server", "msg":this_server_name })
+        other_server_sock.sendall(connection_req.encode("utf-8"))
+        print(f"Sent connection request to server {i}")
+
+        data = types.SimpleNamespace(sock_type="server_sock", addr=other_server_addr, inb="", uname=i)
+
+        sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
+
+        local_cursor.execute(f"INSERT INTO local_buffer (uname, output_buffer) VALUES ('{i}', '')")
+
+else:
+    other_servers = []
+
+conn_accepting_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+conn_accepting_sock.bind(server_addr)
+conn_accepting_sock.listen()
+print(f"Listening on {server_addr} as connection accepter of server")
+conn_accepting_sock.setblocking(False)
+
+sel.register(fileobj=conn_accepting_sock, events=selectors.EVENT_READ, data=None)  # as we only want to read from conn_accepting_sock
+conn = psycopg2.connect(dbname=psql_dbname, user=psql_uname, password=psql_pwd)
+cursor = conn.cursor()
 
 def append_output_buffer(uname, newdata):
     print()
     print(f'ADDING TO OUTPUT BUFFER {newdata} of {uname}')
     print()
-    is_present = local_cursor.execute("SELECT uname FROM local_buffer WHERE uname = '%s'"%(uname)).fetchone()
-    print(is_present)
-    if is_present==None:
-        local_cursor.execute("INSERT INTO local_buffer(uname,output_buffer) VALUES('%s','%s')" % (uname,newdata))
-    else:
-        local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, uname))
+    local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, uname))
 
 def accept_wrapper(sock):
     client_sock, client_addr = sock.accept()
-    
+
     print(f"Accepted connection at {client_addr}")
-    
+
     req_str = client_sock.recv(1024).decode()
-    
+
     print("\nLOADING :")
     print(req_str)
-    
+
     if req_str == "":
         client_sock.close()
         return
@@ -104,6 +103,7 @@ def accept_wrapper(sock):
         data = types.SimpleNamespace(sock_type="server_sock", addr=client_addr, inb="", uname=req["msg"])
         other_servers.append(req["msg"])
         print(f"Accepted connection from server {req['msg']}")
+        local_cursor.execute(f"INSERT INTO local_buffer (uname, output_buffer) VALUES ('{req['msg']}', '')")
         sel.register(fileobj=client_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 
     elif req["hdr"] == "registering":
@@ -124,10 +124,10 @@ def accept_wrapper(sock):
             client_sock.close()
             return
 
-        cursor.execute("INSERT INTO customers(uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
+        cursor.execute("INSERT INTO customers (uname, pub_key) VALUES('%s', '%s')" % (uname, pub_key))
         conn.commit()
-        local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s', '')" % (uname))
-        local_cursor.execute("INSERT INTO server_map(uname, serv_name) VALUES('%s', '%s')" % (uname, this_server_name))
+        local_cursor.execute("INSERT INTO local_buffer (uname, output_buffer) VALUES('%s', '')" % (uname))
+        local_cursor.execute("INSERT INTO server_map (uname, serv_name) VALUES('%s', '%s')" % (uname, this_server_name))
         # Informing all servers
         server_data = json.dumps({"hdr":"reg","msg":uname})
         for i in other_servers:
@@ -152,7 +152,7 @@ def accept_wrapper(sock):
             client_sock.sendall(resp.encode("utf-8"))
             client_sock.close()
             return
-    
+
         pub_key = str_to_pub_key(pub_key[0])
 
         if (not verify_onboarding_req(req_str, pub_key)):
@@ -178,13 +178,13 @@ def accept_wrapper(sock):
 def service_client_connection(key, event):
     client_sock = key.fileobj
     data = key.data
-    
+
     if event & selectors.EVENT_READ:
         recv_data = client_sock.recv(1024).decode("utf-8")
 
         if recv_data == "":
             print(f"Closing connection to {data.addr}")
-            # Informing all servers 
+            # Informing all servers
             server_data = json.dumps({"hdr":"left","msg":data.uname})
             for i in other_servers:
                 append_output_buffer(i, server_data)
@@ -193,7 +193,7 @@ def service_client_connection(key, event):
             return
 
         data.inb += recv_data
-        
+
         def process_data(json_string):
             cursor.execute("SELECT customers.pub_key FROM customers WHERE uname='%s'" % (data.uname))
             pub_key = cursor.fetchone()[0]
@@ -206,11 +206,11 @@ def service_client_connection(key, event):
             if (req["hdr"] == "pub_key"):
                 resp = None
                 cursor.execute("SELECT pub_key FROM customers WHERE uname='%s'" % (req["msg"]))
-                pub_key_output_buffer = cursor.fetchone()
-                if pub_key_output_buffer == None:
+                pub_key = cursor.fetchone()
+                if pub_key == None:
                     resp = { "hdr":"error:4", "msg":f"User {req['msg']} not registered" }
                 else:
-                    pub_key = pub_key_output_buffer[0]
+                    pub_key = pub_key[0]
                     resp = { "hdr":"pub_key", "msg":pub_key }
 
                 append_output_buffer(data.uname, json.dumps(resp))
@@ -224,26 +224,25 @@ def service_client_connection(key, event):
 
                 resp = json.dumps({"hdr":"group_id", "msg":str(group_id)})
                 client_sock.sendall(resp.encode("utf-8"))
-                
+
                 print("\nRegistered new group with id " + str(group_id) + '\n')
 
                 cursor.execute("UPDATE groups SET isAdmin=%d WHERE group_id=0" % (group_id + 1))
                 conn.commit()
 
-
             # Personal message
             elif req["hdr"][0] == ">":
                 recip_uname = req["hdr"][1:]
-                mod_data = json.dumps({ "recip_uname":recip_uname ,"hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
+                mod_data = json.dumps({ "recip_uname":recip_uname, "hdr":'>' + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"], "time":req["time"], "sign":req["sign"] })
 
                 serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
-                if serv==this_server_name:
+                if serv == this_server_name:
                     append_output_buffer(recip_uname, mod_data)
                 else:
-                    append_output_buffer(serv,mod_data)
+                    append_output_buffer(serv, mod_data)
 
                 print("\nSending " + mod_data + " to " + recip_uname + '\n')
-           
+
             # Group operations
             elif req["hdr"][0] == "<":
 
@@ -252,7 +251,7 @@ def service_client_connection(key, event):
                     k = req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_uname = req["hdr"][k + 2:]
-                    
+
                     cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname))
                     is_admin = cursor.fetchone()[0]
                     # Admin removing someone else
@@ -278,13 +277,13 @@ def service_client_connection(key, event):
                         print("Admin may not leave group")
                         resp1 = json.dumps({"hdr":"error:5", "msg":"Admin may not leave group"})
                         append_output_buffer(recip_uname, resp1)
-                    
+
                     # If not admin
                     else:
                         # Leaving the group
                         if recip_uname == data.uname:
                             print("Exiting from group")
-                            
+
                             cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_uname))
                             conn.commit()
                             resp1 = json.dumps({"hdr":"group_left:" + str(group_id), "msg":""})
@@ -298,20 +297,20 @@ def service_client_connection(key, event):
                                 append_output_buffer(i[0], resp2)
 
                             print('\n' + recip_uname + " left group " + str(group_id) + '\n')
-                        
+
                         # Not admin and trying to remove someone else
                         else:
                             pass
 
                 # Adding this person to group
                 elif ":" in req["hdr"][1:]:
-                    k=req["hdr"].find(":")
+                    k = req["hdr"].find(":")
                     group_id = int(req["hdr"][1:k])
                     recip_uname = req["hdr"][k + 1:]
-                    
+
                     print("TRYING TO ADD NEW PERSON")
                     print(f"group_id: {group_id}, recip_uname = {recip_uname}, MyName = {data.uname}")
-                    
+
                     cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, data.uname))
                     is_admin = cursor.fetchone()[0]
                     if(is_admin == 1):
@@ -330,7 +329,7 @@ def service_client_connection(key, event):
                         conn.commit()
 
                         resp1 = {"hdr":"group_added:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
-                        
+
                         serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
                         if serv==this_server_name:
                             append_output_buffer(recip_uname, json.dumps(resp1))
@@ -356,7 +355,7 @@ def service_client_connection(key, event):
                                 append_output_buffer(recip_uname[0], mod_data)
 
                         print("\nSending " + mod_data + " to " + str(group_id) + '\n')
-        
+
         n = 0
         i = 0
         while i != len(data.inb):
@@ -370,15 +369,15 @@ def service_client_connection(key, event):
             if data.inb[i] == '"' and data.inb[i - 1] != '\\':
                 n += 1
             i += 1
-        
+
     if event & selectors.EVENT_WRITE:
         output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
-        
+
         if output_buffer != None and output_buffer[0] != '':
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             client_sock.sendall(output_buffer[0].encode("utf-8"))
 
-def service_server_connection(key,event):
+def service_server_connection(key, event):
     server_sock = key.fileobj
     data = key.data
     if event & selectors.EVENT_READ:
@@ -390,7 +389,7 @@ def service_server_connection(key,event):
             return
 
         data.inb += recv_data
-        
+
         def process_server_data(json_string):
             print("\nLOADS for server ")
             print(json_string)
@@ -400,33 +399,34 @@ def service_server_connection(key,event):
             # Registration
             if req["hdr"] == "reg":
                 new_person = req["msg"]
-                local_cursor.execute("INSERT INTO local_buffer(uname, output_buffer) VALUES('%s', '')" % (new_person))
-                local_cursor.execute("INSERT INTO server_map(uname, serv_name) VALUES('%s', '%s')" % (new_person, data.uname))
+                print("Trying to insert " + new_person)
+                local_cursor.execute("INSERT INTO local_buffer (uname, output_buffer) VALUES('%s', '')" % (new_person))
+                local_cursor.execute("INSERT INTO server_map (uname, serv_name) VALUES('%s', '%s')" % (new_person, data.uname))
                 print()
                 print(f'ADDED new user {new_person} to server {data.uname}')
                 print()
 
             # Onboarding
-            elif req["hdr"]=="onb":                                                
+            elif req["hdr"] == "onb":
                 new_person = req["msg"]
-                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(data.uname,new_person))
+                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'" % (data.uname, new_person))
                 output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{new_person}'").fetchone()[0]
                 local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{new_person}'")
-                # forward this directly to next server 
-                append_output_buffer(data.uname,output_buffer) 
+                # forward this directly to next server
+                append_output_buffer(data.uname, output_buffer)
                 print()
                 print(f'User {new_person} is online on server {data.uname}')
                 print()
 
-            elif req["hdr"]=="left":
+            elif req["hdr"] == "left":
                 left_person = req["msg"]
-                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(this_server_name,left_person))
+                local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'"%(this_server_name, left_person))
                 print()
                 print(f'User {left_person} went offline from server {data.uname}')
                 print()
 
             # Personal message
-            elif req["hdr"][0]=='>':
+            elif req["hdr"][0] == '>':
                 recip_uname = req["recip_uname"]
                 append_output_buffer(recip_uname,json.dumps(req))
 
@@ -434,7 +434,7 @@ def service_server_connection(key,event):
             elif req["hdr"][:12] == "person_added":
                 recip_uname = req.pop("send_to")
                 append_output_buffer(recip_uname,json.dumps(req))
-            
+
             elif req["hdr"][:11] == "group_added":
                 recip_uname = req.pop("send_to")
                 append_output_buffer(recip_uname,json.dumps(req))
@@ -459,12 +459,10 @@ def service_server_connection(key,event):
         if output_buffer != None and output_buffer[0] != '':
             local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{data.uname}'")
             server_sock.sendall(output_buffer[0].encode("utf-8"))
-#        print("heh")
-
 
 def service_balancing_server_connection(key,event):
     balancing_server_sock = key.fileobj
-    data=key.data
+    data = key.data
     if event & selectors.EVENT_WRITE:
         output_buffer = local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{data.uname}'").fetchone()
         if output_buffer != None and output_buffer[0] != '':
