@@ -1,4 +1,5 @@
 from sys import argv
+import sys
 import socket
 import selectors
 import types
@@ -7,6 +8,7 @@ import sqlite3
 import psycopg2
 
 import rsa
+sys.path.append('../')
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
 
 if len(argv) != 5:
