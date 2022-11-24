@@ -318,11 +318,11 @@ def service_client_connection(key, event):
                         cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                         group_participants = cursor.fetchall()
                         
-                        resp2["send_to"] = recip_uname
                         for i in group_participants:
+                            resp2["send_to"] = i[0]
                             serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'" % (i[0])).fetchone()[0]
                             if serv == this_server_name:
-                                append_output_buffer(recip_uname, json.dumps(resp2))
+                                append_output_buffer(i[0], json.dumps(resp2))
                             else:
                                 append_output_buffer(serv,json.dumps(resp2))
 
