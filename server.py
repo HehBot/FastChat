@@ -296,15 +296,24 @@ def service_client_connection(key, event):
 
                             cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_uname))
                             conn.commit()
-                            resp1 = json.dumps({"hdr":"group_left:" + str(group_id), "msg":""})
-                            append_output_buffer(recip_uname, resp1)
+                            resp1 = {"hdr":"group_left:" + str(group_id), "msg":""}
+                            resp1["send_to"] = recip_uname
+                            serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
+                            if serv == this_server_name:
+                                append_output_buffer(recip_uname, json.dumps(resp1))
+                            else:
+                                append_output_buffer(serv, json.dumps(resp1))
 
-                            resp2 = json.dumps({"hdr":"person_left:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-
+                            resp2 = {"hdr":"person_left:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
                             cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                             group_participants = cursor.fetchall()
                             for i in group_participants:
-                                append_output_buffer(i[0], resp2)
+                                resp2["send_to"] = i[0]
+                                serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'" % (i[0])).fetchone()[0]
+                                if serv == this_server_name:
+                                    append_output_buffer(i[0], json.dumps(resp2))
+                                else:
+                                    append_output_buffer(serv,json.dumps(resp2))
 
                             print('\n' + recip_uname + " left group " + str(group_id) + '\n')
 
