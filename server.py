@@ -261,14 +261,24 @@ def service_client_connection(key, event):
                         cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_uname))
                         conn.commit()
 
-                        resp1 = json.dumps({"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
-                        append_output_buffer(recip_uname, resp1)
+                        resp1 = {"hdr":"group_removed:" + str(group_id) + ":" + data.uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
+                        resp1["send_to"] = recip_uname
+                        serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
+                        if serv == this_server_name:
+                            append_output_buffer(recip_uname, json.dumps(resp1))
+                        else:
+                            append_output_buffer(serv, json.dumps(resp1))
 
-                        resp2 = json.dumps({"hdr":"person_removed:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]})
+                        resp2 = {"hdr":"person_removed:" + str(group_id) + ":" + recip_uname + ':' + pub_key, "msg":req["msg"], "aes_key":req["aes_key"],"time":req["time"], "sign":req["sign"]}
                         cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                         group_participants = cursor.fetchall()
                         for i in group_participants:
-                            append_output_buffer(i[0], resp2)
+                            resp2["send_to"] = i[0]
+                            serv = local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'" % (i[0])).fetchone()[0]
+                            if serv == this_server_name:
+                                append_output_buffer(i[0], json.dumps(resp2))
+                            else:
+                                append_output_buffer(serv,json.dumps(resp2))
 
                         print("\nRemoved " + recip_uname + " from group " + str(group_id) + " by " + data.uname + '\n')
 
@@ -438,15 +448,27 @@ def service_server_connection(key, event):
                 recip_uname = req["recip_uname"]
                 append_output_buffer(recip_uname,json.dumps(req))
 
-            #Adding to group
+            # Third party added to group
             elif req["hdr"][:12] == "person_added":
                 recip_uname = req["send_to"]
                 append_output_buffer(recip_uname,json.dumps(req))
-
+            
+            # Recipent added to group
             elif req["hdr"][:11] == "group_added":
                 recip_uname = req["send_to"]
                 append_output_buffer(recip_uname,json.dumps(req))
+            
+            # Third party removed 
+            elif req["hdr"][:14] == "person_removed":
+                recip_uname=req["send_to"]
+                append_output_buffer(recip_uname,json.dumps(req))
+            
+            # You are removed
+            elif req["hdr"][:13] == "group_removed":
+                recip_uname=req["send_to"]
+                append_output_buffer(recip_uname,json.dumps(req))
 
+            # Grp_message
             elif req["hdr"][0]=='<':
                 recip_uname = req["send_to"]
                 append_output_buffer(recip_uname,json.dumps(req))
