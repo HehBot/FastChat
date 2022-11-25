@@ -77,9 +77,9 @@ class Server_to_Client(Server_temp):
         :param json_string: The json to be processed
         :type json_string: JSON string
         """
-        print("LOADS ", end=' ')
-        curr_time = time()
-        print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+        #print("LOADS ", end=' ')
+        #curr_time = time()
+        #print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
         self.req = json.loads(json_string)
 
         # Response to public key request
