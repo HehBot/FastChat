@@ -1,11 +1,12 @@
 from server_temp import Server_temp
+from request import pub_key_to_str
 import json 
 
 class Server_to_Client(Server_temp):
-    def __init__(self, client_addr,uname,cylient_sock,local_cursor,this_server_name, cursor, conn,other_servers,pub_key):
-        Server_temp.__init__(self,uname,cylient_sock,local_cursor,this_server_name,other_servers)
-        self.sock_type="client_sock" 
-        self.addr=client_addr 
+    def __init__(self, client_addr, uname, client_sock, local_cursor, this_server_name, cursor, conn, other_servers, pub_key):
+        Server_temp.__init__(self, uname, client_sock, local_cursor, this_server_name, other_servers)
+        self.sock_type = "client_sock" 
+        self.addr = client_addr 
         self.inb = ''
         self.cursor = cursor
         self.conn = conn 
@@ -24,7 +25,7 @@ class Server_to_Client(Server_temp):
         if recv_data == "":
             print(f"Closing connection to {self.addr}")
             # Informing all servers
-            server_data = json.dumps({"hdr":"left","msg":self.uname})
+            server_data = json.dumps({"hdr":"left", "msg":self.uname})
             for i in self.other_servers:
                 self.append_output_buffer(i, server_data)
             self.stop = True
@@ -46,7 +47,7 @@ class Server_to_Client(Server_temp):
                 n += 1
             i += 1
 
-    def process_data(self,json_string):
+    def process_data(self, json_string):
         print("\nLOADS")
         print(json_string)
         print()
@@ -93,8 +94,8 @@ class Server_to_Client(Server_temp):
 
     def personal_msg(self):
         recip_uname = self.req["hdr"][1:]
-        mod_data = json.dumps({ "send_to":recip_uname, "hdr":'>' + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] })
-
+        mod_data = json.dumps({ "send_to":recip_uname, "hdr":'>' + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] })
+#TypeError: can only concatenate str (not "PublicKey") to str
         serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
         if serv == self.this_server_name:
             self.append_output_buffer(recip_uname, mod_data)
@@ -125,7 +126,7 @@ class Server_to_Client(Server_temp):
             self.cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_uname))
             self.conn.commit()
 
-            resp1 = {"hdr":"group_removed:" + str(group_id) + ":" + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"],"time":self.req["time"], "sign":self.req["sign"]}
+            resp1 = {"hdr":"group_removed:" + str(group_id) + ":" + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
             resp1["send_to"] = recip_uname
             serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
             if serv == self.this_server_name:
@@ -133,7 +134,7 @@ class Server_to_Client(Server_temp):
             else:
                 self.append_output_buffer(serv, json.dumps(resp1))
 
-            resp2 = {"hdr":"person_removed:" + str(group_id) + ":" + recip_uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"],"time":self.req["time"], "sign":self.req["sign"]}
+            resp2 = {"hdr":"person_removed:" + str(group_id) + ":" + recip_uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
             self.cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
             group_participants = self.cursor.fetchall()
             for i in group_participants:
@@ -142,7 +143,7 @@ class Server_to_Client(Server_temp):
                 if serv == self.this_server_name:
                     self.append_output_buffer(i[0], json.dumps(resp2))
                 else:
-                    self.append_output_buffer(serv,json.dumps(resp2))
+                    self.append_output_buffer(serv, json.dumps(resp2))
 
             print("\nRemoved " + recip_uname + " from group " + str(group_id) + " by " + self.uname + '\n')
 
@@ -168,7 +169,7 @@ class Server_to_Client(Server_temp):
                 else:
                     self.append_output_buffer(serv, json.dumps(resp1))
 
-                resp2 = {"hdr":"person_left:" + str(group_id) + ":" + recip_uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"],"time":self.req["time"], "sign":self.req["sign"]}
+                resp2 = {"hdr":"person_left:" + str(group_id) + ":" + recip_uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
                 self.cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                 group_participants = self.cursor.fetchall()
                 for i in group_participants:
@@ -177,7 +178,7 @@ class Server_to_Client(Server_temp):
                     if serv == self.this_server_name:
                         self.append_output_buffer(i[0], json.dumps(resp2))
                     else:
-                        self.append_output_buffer(serv,json.dumps(resp2))
+                        self.append_output_buffer(serv, json.dumps(resp2))
 
                 print('\n' + recip_uname + " left group " + str(group_id) + '\n')
 
@@ -200,7 +201,7 @@ class Server_to_Client(Server_temp):
         self.cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, self.uname))
         is_admin = self.cursor.fetchone()[0]
         if is_admin!=None and is_admin == 1:
-            resp2 = {"hdr":"person_added:" + str(group_id) + ":" + recip_uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"],"time":self.req["time"], "sign":self.req["sign"]}
+            resp2 = {"hdr":"person_added:" + str(group_id) + ":" + recip_uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
             self.cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
             group_participants = self.cursor.fetchall()
             
@@ -210,12 +211,12 @@ class Server_to_Client(Server_temp):
                 if serv == self.this_server_name:
                     self.append_output_buffer(i[0], json.dumps(resp2))
                 else:
-                    self.append_output_buffer(serv,json.dumps(resp2))
+                    self.append_output_buffer(serv, json.dumps(resp2))
 
             self.cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_uname, 0))
             self.conn.commit()
 
-            resp1 = {"hdr":"group_added:" + str(group_id) + ":" + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"],"time":self.req["time"], "sign":self.req["sign"]}
+            resp1 = {"hdr":"group_added:" + str(group_id) + ":" + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
 
             serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
 
@@ -232,7 +233,7 @@ class Server_to_Client(Server_temp):
 
     def group_msg(self):
         group_id = int(self.req["hdr"][1:])
-        mod_data = { "hdr":'<' + str(group_id) + ':' + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] }
+        mod_data = { "hdr":'<' + str(group_id) + ':' + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] }
         self.cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id))
         list_of_names = self.cursor.fetchall()
 
@@ -243,7 +244,7 @@ class Server_to_Client(Server_temp):
                 if serv == self.this_server_name:
                     self.append_output_buffer(i[0], json.dumps(mod_data))
                 else:
-                    self.append_output_buffer(serv,json.dumps(mod_data))
+                    self.append_output_buffer(serv, json.dumps(mod_data))
 
 
         print("\nSending " + json.dumps(mod_data) + " to " + str(group_id) + '\n')

@@ -8,7 +8,7 @@ from request import *
 from time import time, strftime, localtime
 
 class Client:
-    def __init__(self,dbfile:bool,server_addr:tuple):
+    def __init__(self, dbfile:bool, server_addr:tuple):
         self.pub_key_info = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
         self.grp_registering_info = [None, False] # Group_id, is Group id set
 
@@ -18,14 +18,14 @@ class Client:
         self.cursor = self.conn.cursor() # Connecting to sqlite3
 
         if not dbfile:
-            self.uname, self.pub_key,self.priv_key = self.register(server_addr)
+            self.uname, self.pub_key, self.priv_key = self.register(server_addr)
         else :
-            self.uname, self.pub_key,self.priv_key = self.onboard(server_addr)
+            self.uname, self.pub_key, self.priv_key = self.onboard(server_addr)
     def destroy(self):
         self.client_sock.close()
         self.conn.commit()
         self.cursor.close()
-    def register(self,server_addr):
+    def register(self, server_addr):
         pub_key, priv_key = newkeys(512)
 
         while (True):
@@ -79,8 +79,8 @@ $G::A
 $G1::
     Leave group G1 (if you are not its admin)
 -----------------------------------------""")
-        return uname,pub_key,priv_key
-    def onboard(self,server_addr):
+        return uname, pub_key, priv_key
+    def onboard(self, server_addr):
         uname, pub_key, priv_key = self.cursor.execute("SELECT group_name, group_pub_key, group_priv_key FROM group_name_keys WHERE group_id=0").fetchone()
 
         pub_key = str_to_pub_key(pub_key)
@@ -103,7 +103,7 @@ $G1::
 
         print(resp["msg"])
         return uname, pub_key, priv_key 
-    def process_data(self,data):
+    def process_data(self, data):
         req = json.loads(data)
 
         if req["hdr"][:5] == "error":
@@ -164,7 +164,6 @@ $G1::
             recv = decrypt_e2e_req(sent_data, self.priv_key, admin_pub_key)
 
             msg = recv["msg"]
-            time = recv["time"]
 
             p = msg.find(':')
             group_name = msg[:p]
@@ -172,7 +171,10 @@ $G1::
 
             self.cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, group_pub_key, group_priv_key))
 
-            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(time))))
+            sndr_time = float(recv["time"])
+            curr_time = time()
+            print(strftime(f"\n%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+            print(strftime(f"Sent at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
             print(f"{admin_name} added you to {group_name} (id {group_id})\n")
 
         elif req["hdr"][:12] == "person_added":
@@ -202,7 +204,10 @@ $G1::
 
             msg = decrypt_e2e_req(sent_data, self.priv_key, sndr_pub_key)
 
-            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
+            sndr_time = float(msg["time"])
+            curr_time = time()
+            print(strftime(f"\n%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+            print(strftime(f"Sent at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
             print(f"Received from {sndr_uname}:")
             print("\n\t" + msg["msg"])
 
@@ -227,8 +232,11 @@ $G1::
             group_priv_key, group_name = self.cursor.execute("SELECT group_priv_key, group_name FROM group_name_keys WHERE group_id = %d" % (group_id)).fetchone()
 
             msg = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
-
-            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
+            
+            sndr_time = float(msg["time"])
+            curr_time = time()
+            print(strftime(f"\n%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+            print(strftime(f"Sent at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
             print(f"Received on {group_name} (id {group_id}) from {sndr_uname}:")
             print("\n\t" + msg["msg"])
             
@@ -240,7 +248,7 @@ $G1::
                 f = open(file_name, "wb")
                 f.write(file)
                 f.close()
-    def send_group_message(self,x,file):
+    def send_group_message(self, x, attached_file_name, file):
         u = x.find(':')
         group_name = x[:u]
         group_info = self.cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name ='%s'" % (group_name)).fetchall()
@@ -269,14 +277,12 @@ $G1::
 
             if file != "":
                 req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
-                attached_file_name = ""
-                file = ""
 
             enc_req = encrypt_e2e_req(req, group_pub_key, self.priv_key)
             self.client_sock.sendall(enc_req.encode("utf-8"))
         else:
             print(f"You are not a member of group {group_name}")
-    def remove_person(self,x):
+    def remove_person(self, x):
         u = x.find(':')
         group_name = x[:u]
         
@@ -307,7 +313,7 @@ $G1::
             self.client_sock.sendall(enc_req.encode("utf-8"))
         else:
             print(f"You are not a member of group {group_name}")
-    def add_to_group(self,x):
+    def add_to_group(self, x):
         u = x.find(':')
         group_name = x[:u]
 
@@ -349,7 +355,7 @@ $G1::
             self.client_sock.sendall(enc_req.encode("utf-8"))
         else:
             print(f"You are not a member of group {group_name}")
-    def create_group(self,group_name):
+    def create_group(self, group_name):
         if ':' in group_name:
             print("Group name may not contain ':'")
         else:
@@ -368,7 +374,7 @@ $G1::
             self.cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, pub_key_to_str(group_pub_key), priv_key_to_str(group_priv_key)) )
 
             print(f"\nCreated new group {group_name} with id {group_id}\n")
-    def send_personal_message(self,x,file):
+    def send_personal_message(self, x, attached_file_name, file):
         u = x.find(':')
         recip_uname = x[:u]
 
@@ -391,8 +397,6 @@ $G1::
 
         if file != "":
             req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
-            attached_file_name = ""
-            file = ""
 
         enc_req = encrypt_e2e_req(req, self.pub_key_info[0], self.priv_key)
         self.client_sock.sendall(enc_req.encode("utf-8"))

@@ -3,11 +3,11 @@ import json
 import sqlite3
 
 class Server_to_Server(Server_temp):
-    def __init__(self, other_server_addr,uname,server_sock,local_cursor,this_server_name,other_servers ):
-        Server_temp.__init__(self,uname,server_sock,local_cursor,this_server_name,other_servers)
-        self.sock_type="server_sock" 
-        self.addr=other_server_addr 
-        self.inb=''
+    def __init__(self, other_server_addr, uname, server_sock, local_cursor, this_server_name, other_servers ):
+        Server_temp.__init__(self, uname, server_sock, local_cursor, this_server_name, other_servers)
+        self.sock_type = "server_sock" 
+        self.addr = other_server_addr 
+        self.inb = ''
 
     def write(self):
         output_buffer = self.local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{self.uname}'").fetchone()
@@ -39,19 +39,19 @@ class Server_to_Server(Server_temp):
             i += 1
 
     def process_server_data(self, json_string):
-            print("\nProcessing data recieved from Server : ")
-            print(json_string)
-            print()
-            self.req = json.loads(json_string)
-            if self.req["hdr"] == "reg":
-                self.reg()
-            elif self.req["hdr"] == "onb":
-                self.onb()
-            elif self.req["hdr"] == "left":\
-                self.left()
-            else:
-                recip_uname = self.req["send_to"]
-                self.append_output_buffer(recip_uname, json.dumps(self.req))
+        print("\nProcessing data recieved from Server : ")
+        print(json_string)
+        print()
+        self.req = json.loads(json_string)
+        if self.req["hdr"] == "reg":
+            self.reg()
+        elif self.req["hdr"] == "onb":
+            self.onb()
+        elif self.req["hdr"] == "left":\
+            self.left()
+        else:
+            recip_uname = self.req["send_to"]
+            self.append_output_buffer(recip_uname, json.dumps(self.req))
 
     def reg(self):
         new_person = self.req["msg"]

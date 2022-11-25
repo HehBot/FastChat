@@ -4,7 +4,9 @@ ip=$1
 bsport=$2
 N=$3
 currport=$bsport
-gnome-terminal --command="./bs $ip $bsport"
+mkdir -p balancing_server && cd balancing_server
+gnome-terminal --command="../bs $ip $bsport"
+cd ..
 m=1
 while [[ $m -le $N ]]; do
     ((currport++))

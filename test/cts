@@ -1,0 +1,33 @@
+#!/bin/bash
+
+i=1
+while [[ $i -le $3 ]]; do
+    mkdir -p client$i && cd client$i
+    echo client$i > temp
+    echo q >> temp
+    python3 ../../client/main.py $1 $2 < temp
+    rm -rf temp
+    cd ..
+    ((i++))
+done
+i=1
+while [[ $i -le $3 ]]; do
+    cd client$i
+    rm -rf client$i.in
+    touch client$i.in
+    j=1
+    while [[ $j -le $3 ]]; do
+        echo client$j:Message from client$i to client$j >> client$i.in
+        ((j++))
+    done
+    echo q >> client$i.in
+    cd ..
+    ((i++))
+done
+i=1
+while [[ $i -le $3 ]]; do
+    cd client$i
+    gnome-terminal --command="../ct $1 $2 $i"
+    cd ..
+    ((i++))
+done

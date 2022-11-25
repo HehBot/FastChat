@@ -17,4 +17,3 @@ def listen(the_client):
                 n += 1
             i += 1
         input_buffer += the_client.client_sock.recv(1024).decode("utf-8")
-

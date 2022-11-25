@@ -15,12 +15,5 @@ class Server_temp:
         print()
         self.local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, name))
 
-
-
-
 class Server(Server_temp):
     pass
-
-
-
-

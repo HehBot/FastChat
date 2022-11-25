@@ -19,14 +19,11 @@ try:
 except:
     dbfile = False
 
-the_client = Client(dbfile,server_addr)
+the_client = Client(dbfile, server_addr)
 
 t1 = threading.Thread(target=listen, args=(the_client,))
 t1.daemon = True
 t1.start()
-
-
-
 
 try:
     attached_file_name = ""
@@ -41,18 +38,23 @@ try:
 
         x = input()
 
-        if x == "!":
+        if x == '':
+            continue
+        elif x == 'q':
+            print("Closing")
+            the_client.destroy()
+            break
+        elif x == "!":
             attached_file_path = askopenfilename()
             file = base64.b64encode(open(attached_file_path, "rb").read()).decode("utf-8")
             attached_file_name = attached_file_path.split('/')[-1]
-
         elif x == "!!":
             attached_file_name = ""
             file = ""
         elif x[0] == ':':
-            the_client.send_group_message(x[1:],file)
-        elif x == '':
-            continue
+            the_client.send_group_message(x[1:], attached_file_name, file)
+            attached_file_name = ""
+            file = ""
         elif x[0]=='$':
             if "::" in x:
                 the_client.remove_person(x[1:])
@@ -61,9 +63,10 @@ try:
             else :
                 the_client.create_group(x[1:])
         else:
-            the_client.send_personal_message(x,file)
+            the_client.send_personal_message(x, attached_file_name, file)
+            attached_file_name = ""
+            file = ""
             
 except KeyboardInterrupt:
     print("Closing")
     the_client.destroy()
-

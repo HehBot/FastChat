@@ -8,7 +8,7 @@ import sqlite3
 import psycopg2
 from server_to_server import Server_to_Server
 from server_to_client import Server_to_Client
-from balance_server_to_server import Balance_Server_to_Server
+from balancing_server_to_server import Balancing_Server_to_Server
 
 import rsa
 sys.path.append('../')
@@ -42,9 +42,8 @@ sel = selectors.DefaultSelector()
 balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 balancing_server_sock.connect(balancing_server_addr)
 
-data_class = Balance_Server_to_Server(":balance_serv:",balancing_server_sock,local_cursor,this_server_name ,[])
+data_class = Balancing_Server_to_Server(":balance_serv:", balancing_server_sock, local_cursor, this_server_name, [])
 sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=data_class)
-
 
 init_req = json.dumps({ "hdr":"server", "msg":this_server_name })
 balancing_server_sock.sendall(init_req.encode("utf-8"))
@@ -66,7 +65,7 @@ if other_servers[0] != "FIRST":
         other_server_sock.sendall(connection_req.encode("utf-8"))
         print(f"Sent connection request to server {i}")
 
-        data = Server_to_Server(other_server_addr, i , other_server_sock, local_cursor,this_server_name,other_servers)
+        data = Server_to_Server(other_server_addr, i , other_server_sock, local_cursor, this_server_name, other_servers)
         sel.register(fileobj=other_server_sock, events=selectors.EVENT_READ | selectors.EVENT_WRITE, data=data)
 
         local_cursor.execute(f"INSERT INTO local_buffer (uname, output_buffer) VALUES ('{i}', '')")
@@ -107,7 +106,7 @@ def accept_wrapper(sock):
     req = json.loads(req_str)
 
     if req["hdr"] == "server":
-        data = Server_to_Server( client_addr, req["msg"] ,client_sock , local_cursor,this_server_name,other_servers )
+        data = Server_to_Server( client_addr, req["msg"], client_sock, local_cursor, this_server_name, other_servers )
         other_servers.append(req["msg"])
         print(f"Accepted connection from server {req['msg']}")
         local_cursor.execute(f"INSERT INTO local_buffer (uname, output_buffer) VALUES ('{req['msg']}', '')")
@@ -136,7 +135,7 @@ def accept_wrapper(sock):
         local_cursor.execute("INSERT INTO local_buffer (uname, output_buffer) VALUES('%s', '')" % (uname))
         local_cursor.execute("INSERT INTO server_map (uname, serv_name) VALUES('%s', '%s')" % (uname, this_server_name))
         # Informing all servers
-        server_data = json.dumps({"hdr":"reg","msg":uname})
+        server_data = json.dumps({"hdr":"reg", "msg":uname})
         for i in other_servers:
             append_output_buffer(i, server_data)
 
@@ -145,7 +144,7 @@ def accept_wrapper(sock):
 
         client_sock.sendall(resp.encode("utf-8"))
 
-        data = Server_to_Client(client_addr,uname, client_sock, local_cursor,this_server_name,cursor,conn,other_servers,pub_key)
+        data = Server_to_Client(client_addr, uname, client_sock, local_cursor, this_server_name, cursor, conn, other_servers, pub_key)
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
 
@@ -171,7 +170,7 @@ def accept_wrapper(sock):
             return
 
         # Informing all servers
-        server_data = json.dumps({"hdr":"onb","msg":uname})
+        server_data = json.dumps({"hdr":"onb", "msg":uname})
         for i in other_servers:
             append_output_buffer(i, server_data)
 
@@ -179,10 +178,9 @@ def accept_wrapper(sock):
         resp = json.dumps({ "hdr":"onboarded", "msg":f"User {uname} onboarded" })
 
         client_sock.sendall(resp.encode("utf-8"))
-        data = Server_to_Client(client_addr,uname,client_sock, local_cursor,this_server_name,cursor,conn,other_servers,pub_key )
+        data = Server_to_Client(client_addr, uname, client_sock, local_cursor, this_server_name, cursor, conn, other_servers, pub_key)
         events = selectors.EVENT_READ | selectors.EVENT_WRITE
         sel.register(fileobj=client_sock, events=events, data=data)
-
 
 try:
     while True:
