@@ -15,5 +15,10 @@ class Server_temp:
         print()
         self.local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, name))
 
+    def bigsendall(self, bytedata):
+        while len(bytedata) > 0:
+            transmitted = self.client_sock.send(bytedata)
+            bytedata = bytedata[transmitted:]
+
 class Server(Server_temp):
     pass

@@ -21,6 +21,10 @@ class Client:
             self.uname, self.pub_key, self.priv_key = self.register(server_addr)
         else :
             self.uname, self.pub_key, self.priv_key = self.onboard(server_addr)
+    def bigsendall(self, bytedata):
+        while len(bytedata) > 0:
+            transmitted = self.client_sock.send(bytedata)
+            bytedata = bytedata[transmitted:]
     def destroy(self):
         self.client_sock.close()
         self.conn.commit()
@@ -41,14 +45,14 @@ class Client:
             initial_client_sock.connect(server_addr)
             initial_client_sock.sendall(json.dumps( {"hdr":"client"} ).encode("utf-8"))
 
-            new_addr = initial_client_sock.recv(1024).decode("utf-8").split(':')
+            new_addr = initial_client_sock.recv(4096).decode("utf-8").split(':')
             initial_client_sock.close()
 
             new_addr = (new_addr[0], int(new_addr[1]))
             self.client_sock.connect(new_addr)
             self.client_sock.sendall(req.encode("utf-8"))
 
-            resp = json.loads(self.client_sock.recv(1024).decode())
+            resp = json.loads(self.client_sock.recv(4096).decode("utf-8"))
 
             print(resp["msg"])
             if (resp["hdr"][:5] == "error"):
@@ -92,17 +96,18 @@ $G1::
         initial_client_sock.connect(server_addr)
         initial_client_sock.sendall(json.dumps( {"hdr":"client"} ).encode("utf-8"))
 
-        new_addr = initial_client_sock.recv(1024).decode("utf-8").split(':')
+        new_addr = initial_client_sock.recv(4096).decode("utf-8").split(':')
         initial_client_sock.close()
 
         new_addr = (new_addr[0], int(new_addr[1]))
         self.client_sock.connect(new_addr)
         self.client_sock.sendall(req.encode("utf-8"))
         
-        resp = json.loads(self.client_sock.recv(1024).decode())
+        resp = json.loads(self.client_sock.recv(4096).decode("utf-8"))
 
         print(resp["msg"])
         return uname, pub_key, priv_key 
+
     def process_data(self, data):
         req = json.loads(data)
 
@@ -248,6 +253,7 @@ $G1::
                 f = open(file_name, "wb")
                 f.write(file)
                 f.close()
+
     def send_group_message(self, x, attached_file_name, file):
         u = x.find(':')
         group_name = x[:u]
@@ -279,9 +285,10 @@ $G1::
                 req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
 
             enc_req = encrypt_e2e_req(req, group_pub_key, self.priv_key)
-            self.client_sock.sendall(enc_req.encode("utf-8"))
+            self.bigsendall(enc_req.encode("utf-8"))
         else:
             print(f"You are not a member of group {group_name}")
+
     def remove_person(self, x):
         u = x.find(':')
         group_name = x[:u]
@@ -399,4 +406,4 @@ $G1::
             req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
 
         enc_req = encrypt_e2e_req(req, self.pub_key_info[0], self.priv_key)
-        self.client_sock.sendall(enc_req.encode("utf-8"))
+        self.bigsendall(enc_req.encode("utf-8"))

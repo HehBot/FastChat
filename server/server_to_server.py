@@ -13,10 +13,10 @@ class Server_to_Server(Server_temp):
         output_buffer = self.local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{self.uname}'").fetchone()
         if output_buffer != None and output_buffer[0] != '':
             self.local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{self.uname}'")
-            self.sock.sendall(output_buffer[0].encode("utf-8"))
+            self.bigsendall(output_buffer[0].encode("utf-8"))
 
     def read(self): 
-        recv_data = self.sock.recv(1024).decode("utf-8")
+        recv_data = self.sock.recv(4096).decode("utf-8")
         if recv_data == "":
             print(f"Closing connection to {self.addr}")
             self.stop =True

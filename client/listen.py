@@ -16,4 +16,4 @@ def listen(the_client):
             if input_buffer[i] == '"' and input_buffer[i - 1] != '\\':
                 n += 1
             i += 1
-        input_buffer += the_client.client_sock.recv(1024).decode("utf-8")
+        input_buffer += the_client.client_sock.recv(4096).decode("utf-8")

@@ -50,7 +50,7 @@ balancing_server_sock.sendall(init_req.encode("utf-8"))
 
 print(f"Connected to balancing server at {balancing_server_addr}")
 
-other_servers_string, psql_dbname, psql_uname, psql_pwd = balancing_server_sock.recv(1024).decode("utf-8").split('-')
+other_servers_string, psql_dbname, psql_uname, psql_pwd = balancing_server_sock.recv(4096).decode("utf-8").split('-')
 other_servers = other_servers_string.split(';')
 
 if other_servers[0] != "FIRST":
@@ -94,7 +94,7 @@ def accept_wrapper(sock):
 
     print(f"Accepted connection at {client_addr}")
 
-    req_str = client_sock.recv(1024).decode()
+    req_str = client_sock.recv(4096).decode("utf-8")
 
     print("\nLOADING :")
     print(req_str)
@@ -195,11 +195,12 @@ try:
                     key.data.read()
                 if key.data.stop:
                     sel.unregister(key.fileobj)
+
 except KeyboardInterrupt:
     print("Caught keyboard interrupt, exiting")
-finally:
-    sel.close()
-    conn_accepting_sock.close()
+
+sel.close()
+conn_accepting_sock.close()
 local_conn.commit()
 conn.commit()
 local_cursor.close()
