@@ -159,10 +159,9 @@ def accept_wrapper(sock):
             client_sock.sendall(resp.encode("utf-8"))
             client_sock.close()
             return
+        pub_key = pub_key[0]
 
-        pub_key = str_to_pub_key(pub_key[0])
-
-        if (not verify_onboarding_req(req_str, pub_key)):
+        if (not verify_onboarding_req(req_str, str_to_pub_key(pub_key))):
             print(f"Rejected attempt from client {client_addr}: Invalid onboarding request")
             resp = json.dumps({ "hdr":"error:3", "msg":"Invalid onboarding request" })
             client_sock.sendall(resp.encode("utf-8"))
