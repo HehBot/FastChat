@@ -1,3 +1,2 @@
 #!/bin/sh
-python3 ../../server/main.py $1 $2 $1 $3 # | tee server$1:$2.out
-sleep 30
+python3 -u ../../server/main.py $1 $2 $1 $3 | tee server$1:$2.out

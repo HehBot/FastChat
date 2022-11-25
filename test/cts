@@ -20,6 +20,7 @@ while [[ $i -le $3 ]]; do
         echo client$j:Message from client$i to client$j >> client$i.in
         ((j++))
     done
+    shuf -o client$i.in client$i.in
     echo q >> client$i.in
     cd ..
     ((i++))
