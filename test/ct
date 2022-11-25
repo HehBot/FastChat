@@ -1,8 +1,3 @@
-#!/bin/bash
-i=1
-while [[ $i -le $3 ]]; do
-    mkdir -p client$i && cd client$i
-    gnome-terminal --command="python3 ../client.py $1 $2"
-    cd ..
-    ((i++))
-done
+#!/bin/sh
+
+while read -r line; do echo "$line"; sleep 2; done < client$3.in | python3 ../../client.py $1 $2 | tee client$3.out

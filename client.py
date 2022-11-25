@@ -174,7 +174,6 @@ def listen():
             recv = decrypt_e2e_req(sent_data, priv_key, admin_pub_key)
 
             msg = recv["msg"]
-            time = recv["time"]
 
             p = msg.find(':')
             group_name = msg[:p]
@@ -182,7 +181,10 @@ def listen():
 
             cursor.execute("INSERT INTO group_name_keys(group_id, group_name, group_pub_key, group_priv_key) VALUES(%d, '%s', '%s', '%s')" % (group_id, group_name, group_pub_key, group_priv_key))
 
-            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(time))))
+            sndr_time = float(recv["time"])
+            curr_time = time()
+            print(strftime(f"\n%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+            print(strftime(f"Sent at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
             print(f"{admin_name} added you to {group_name} (id {group_id})\n")
 
         elif req["hdr"][:12] == "person_added":
@@ -212,7 +214,10 @@ def listen():
 
             msg = decrypt_e2e_req(sent_data, priv_key, sndr_pub_key)
 
-            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
+            sndr_time = float(msg["time"])
+            curr_time = time()
+            print(strftime(f"\n%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+            print(strftime(f"Sent at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
             print(f"Received from {sndr_uname}:")
             print("\n\t" + msg["msg"])
 
@@ -238,7 +243,10 @@ def listen():
 
             msg = decrypt_e2e_req(sent_data, str_to_priv_key(group_priv_key), str_to_pub_key(sndr_pub_key))
 
-            print(strftime("\n%a, %d %b %Y %H:%M:%S", localtime(float(msg["time"]))))
+            sndr_time = float(msg["time"])
+            curr_time = time()
+            print(strftime(f"\n%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+            print(strftime(f"Sent at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
             print(f"Received on {group_name} (id {group_id}) from {sndr_uname}:")
             print("\n\t" + msg["msg"])
             
@@ -272,12 +280,8 @@ t1.daemon = True
 t1.start()
 
 def bigsendall(socket, barray, chunk=10000):
-    print()
-    print(len(barray))
     for i in range((len(barray) // chunk) + 1):
-        print(barray[i * chunk:(i + 1) * chunk], end='')
         socket.sendall(barray[i * chunk:(i + 1) * chunk])
-    print()
 
 try:
     attached_file_name = ""
@@ -292,8 +296,11 @@ try:
 
         x = input()
 
+        if x == "q":
+            break
+
         # Attach file
-        if x == "!":
+        elif x == "!":
             attached_file_path = askopenfilename()
             file = base64.b64encode(open(attached_file_path, "rb").read()).decode("utf-8")
             attached_file_name = attached_file_path.split('/')[-1]

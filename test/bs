@@ -1,3 +1,2 @@
 #!/bin/sh
-python3 balancing_server.py $1 $2
-sleep 30
+python3 ../../balancing_server.py $1 $2

@@ -4,12 +4,14 @@ ip=$1
 bsport=$2
 N=$3
 currport=$bsport
-gnome-terminal --command="./bs $ip $bsport"
+mkdir -p balancing_server && cd balancing_server
+gnome-terminal --command="../bs $ip $bsport | tee balancing_server.log"
+cd ..
 m=1
 while [[ $m -le $N ]]; do
     ((currport++))
     mkdir -p server$m && cd server$m
-    gnome-terminal --command="../sr $ip $currport $bsport"
+    gnome-terminal --command="../sr $ip $currport $bsport | tee server$m.log"
     cd ..
     ((m++))
 done

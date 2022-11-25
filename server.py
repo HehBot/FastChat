@@ -176,12 +176,8 @@ def accept_wrapper(sock):
         sel.register(fileobj=client_sock, events=events, data=data)
 
 def bigsendall(socket, barray, chunk=10000):
-    print()
-    print(len(barray))                                                             
     for i in range((len(barray) // chunk) + 1):
-        print(barray[i * chunk:(i + 1) * chunk], end='')
         socket.sendall(barray[i * chunk:(i + 1) * chunk])
-    print()
 
 def service_client_connection(key, event):
     client_sock = key.fileobj

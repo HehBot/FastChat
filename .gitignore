@@ -2,5 +2,7 @@
 __pycache__/
 .mypy_cache/
 *.db*
-test/tmp*/*
-test/*.py
+test/balancing_server/*
+test/client*/*
+test/server*/*
+test/samples/*
