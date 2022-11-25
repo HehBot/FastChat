@@ -1,11 +1,12 @@
 import json 
 
 def listen(the_client):
-    '''Function to listen for incoming messages
+    """
+    Function to listen for incoming messages
 
     :param the_client: The client object
-    :type the _client: Client
-    '''
+    :type the_client: Client
+    """
     input_buffer = ""
     while True:
         n = 0

@@ -2,8 +2,8 @@
 
 while read -r line; do 
 	if [ "$line" == "q" ]; then 
-		sleep 40
+		sleep 30
 	fi	
 	echo "$line" 
-	sleep 5
+	sleep 1
 done < client$3.in | python3 -u ../../client/main.py $1 $2 | tee client$3.out

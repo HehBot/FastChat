@@ -36,5 +36,3 @@ for i in range(num_files):
 
     avg = avg + (tot_time/tot)
 print("Average latency = " + str(1000 * avg/num_files) + " ms")
-arr.sort()
-print(arr)

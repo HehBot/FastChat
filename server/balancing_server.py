@@ -5,11 +5,11 @@ import types
 import sqlite3
 import psycopg2
 import json
-'''Python script to start the load balancing server
+"""Python script to start the load balancing server
 This server accepts connections from other servers and adds them to the list of servers
 It also accepts connections from clients and directs them towards servers
 
-'''
+"""
 if len(argv) != 3:
     print(f"Usage: {argv[0]} <server ip> <server port>")
     exit(-1)
@@ -54,21 +54,21 @@ shared_cursor.close()
 shared_conn.close()
 
 def decide_server():
-    '''This decides which server does the incoming client connect to
+    """This decides which server does the incoming client connect to
     We return the server with least number of currently logged in clients
 
     :return: Address of server to be connected to
     :rtype: String 
-    '''
+    """
     cursor.execute("SELECT server_addr, MIN(connections) FROM servers")
     return cursor.fetchone()[0]
 
 def accept_wrapper(sock):
-    ''' Accepts connections from server or client
+    """Accepts connections from server or client
 
     :param sock:The socket on which information has been received
     :type sock: Socket
-    '''
+    """
     other_sock, other_addr = sock.accept()
     print(f"Accepted connection from {other_addr}")
     
@@ -98,11 +98,11 @@ def accept_wrapper(sock):
         other_sock.close()
 
 def service_connection(key):
-    '''Communicating with server after it has joined
+    """Communicating with server after it has joined
     
     :param key: The key in which changes have been made
     :type key: Selector key
-    '''
+    """
     server_sock = key.fileobj
     server_addr = key.data.addr
 

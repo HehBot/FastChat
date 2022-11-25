@@ -1,0 +1,256 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>client module &#8212; FastChat Client  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="listen module" href="listen.html" />
+    <link rel="prev" title="client" href="modules.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-client">
+<span id="client-module"></span><h1>client module<a class="headerlink" href="#module-client" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="client.Client">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">client.</span></span><span class="sig-name descname"><span class="pre">Client</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dbfile</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_addr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class contains the client object with all required members</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>pub_key_info</strong> (<em>[</em><em>String</em><em>,</em><em>Bool</em><em>,</em><em>Bool</em><em>]</em>) – Contains reply to a pub key request, first entry is pub key second is if it has been set third is if that person doesn’t exist</p></li>
+<li><p><strong>grp_registering_info</strong> (<em>[</em><em>String</em><em>,</em><em>Bool</em><em>]</em>) – Contains reply to a request for unique group id while creating a group, first</p></li>
+<li><p><strong>client_sock</strong> (<em>Socket</em>) – The socket of client</p></li>
+<li><p><strong>conn</strong> (<em>sqlite.connect</em>) – Connection to the database</p></li>
+<li><p><strong>cursor</strong> (<em>sqlite.cursor</em>) – Cursor in the database</p></li>
+<li><p><strong>uname</strong> (<em>String</em>) – Clients username</p></li>
+<li><p><strong>pub_key</strong> (<em>rsa.public_key</em>) – Clients public key</p></li>
+<li><p><strong>priv_key</strong> (<em>rsa.private_key</em>) – Clients private key</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.add_to_group">
+<span class="sig-name descname"><span class="pre">add_to_group</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.add_to_group" title="Permalink to this definition">¶</a></dt>
+<dd><p>To add a member to a group</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>String</em>) – The group name followed by the name of the person to be removed seperated by colon</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.bigsendall">
+<span class="sig-name descname"><span class="pre">bigsendall</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bytedata</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.bigsendall" title="Permalink to this definition">¶</a></dt>
+<dd><p>To send big chunks of data by breaking into smaller chunks</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>bytedata</strong> (<em>bytearray</em>) – The encoded data</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.create_group">
+<span class="sig-name descname"><span class="pre">create_group</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">group_name</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.create_group" title="Permalink to this definition">¶</a></dt>
+<dd><p>To create a group</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>String</em>) – Group name</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.destroy">
+<span class="sig-name descname"><span class="pre">destroy</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.destroy" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function called when connection ends</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.onboard">
+<span class="sig-name descname"><span class="pre">onboard</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server_addr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.onboard" title="Permalink to this definition">¶</a></dt>
+<dd><p>registered user coming online, we get public key and private key from local database and send onboarding message to the servers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>server_addr</strong> (<em>Tuple</em><em> (</em><em>string</em><em>,</em><em>int</em><em>)</em>) – The server address to which we have to connect at first to get directed to a server</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(username, public key, private key)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple (string , rsa.public_key, rsa.private_key)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.process_data">
+<span class="sig-name descname"><span class="pre">process_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.process_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>To process a received message</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>String</em>) – The string we received</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.register">
+<span class="sig-name descname"><span class="pre">register</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">server_addr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.register" title="Permalink to this definition">¶</a></dt>
+<dd><p>User registering for first time, we generate public and private key and register with the servers</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>server_addr</strong> (<em>Tuple</em><em> (</em><em>string</em><em>,</em><em>int</em><em>)</em>) – The server address to which we have to connect at first</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>(username, public key, private key)</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>tuple (string , rsa.public_key, rsa.private_key)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.remove_person">
+<span class="sig-name descname"><span class="pre">remove_person</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.remove_person" title="Permalink to this definition">¶</a></dt>
+<dd><p>To remove person from a group</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>x</strong> (<em>String</em>) – Contains group name followed by name of person to be removed seperated by colon</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.send_group_message">
+<span class="sig-name descname"><span class="pre">send_group_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attached_file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.send_group_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sending group message</p>
+<p>:param x:The message in the formate group_name+mssg
+:type x: string
+:param attached_file_name: The name of the attached file
+:type attached_file_name: string
+:file: The contents of the file, empty if not attached
+:type file: bytearray</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="client.Client.send_personal_message">
+<span class="sig-name descname"><span class="pre">send_personal_message</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">attached_file_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#client.Client.send_personal_message" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sending  personal</p>
+<p>:param x:The message in the formate recipients_name+message
+:type x: string
+:param attached_file_name: The name of the attached file
+:type attached_file_name: string
+:file: The contents of the file, empty if no file
+:type file: bytearray</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">FastChat Client</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">client</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">client module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="listen.html">listen module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="request.html">request module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">client</a><ul>
+      <li>Previous: <a href="modules.html" title="previous chapter">client</a></li>
+      <li>Next: <a href="listen.html" title="next chapter">listen module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, FireChat.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/client.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
