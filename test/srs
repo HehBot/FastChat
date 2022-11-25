@@ -1,0 +1,17 @@
+#!/bin/bash
+
+ip=$1
+bsport=$2
+N=$3
+currport=$bsport
+mkdir -p balancing_server && cd balancing_server
+gnome-terminal --command="../bs $ip $bsport"
+cd ..
+m=1
+while [[ $m -le $N ]]; do
+    ((currport++))
+    mkdir -p server$m && cd server$m
+    gnome-terminal --command="../sr $ip $currport $bsport"
+    cd ..
+    ((m++))
+done

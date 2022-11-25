@@ -1,0 +1,173 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>server_to_server module &#8212; FastChat  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="prev" title="server_to_client module" href="server_to_client.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-server_to_server">
+<span id="server-to-server-module"></span><h1>server_to_server module<a class="headerlink" href="#module-server_to_server" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="server_to_server.Server_to_Server">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">server_to_server.</span></span><span class="sig-name descname"><span class="pre">Server_to_Server</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">other_server_addr</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">uname</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">server_sock</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">local_cursor</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">this_server_name</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">other_servers</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#server_to_server.Server_to_Server" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <a class="reference internal" href="server_temp.html#server_temp.Server_temp" title="server_temp.Server_temp"><code class="xref py py-class docutils literal notranslate"><span class="pre">server_temp.Server_temp</span></code></a></p>
+<p>Class that abstracts the server to server data</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>sock_type</strong> (<em>Socket</em>) – The type of socket that we are connecting to</p></li>
+<li><p><strong>addr</strong> (<em>Ip:port</em>) – Address of the server we have connected to</p></li>
+<li><p><strong>inb</strong> (<em>String</em>) – Input buffer for this connection</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="server_to_server.Server_to_Server.left">
+<span class="sig-name descname"><span class="pre">left</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#server_to_server.Server_to_Server.left" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to signify when a user goes offline</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="server_to_server.Server_to_Server.onb">
+<span class="sig-name descname"><span class="pre">onb</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#server_to_server.Server_to_Server.onb" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to allow an existing client to onboard and communicate it to the required server</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="server_to_server.Server_to_Server.process_server_data">
+<span class="sig-name descname"><span class="pre">process_server_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_string</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#server_to_server.Server_to_Server.process_server_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to process the incoming json file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>json_string</strong> (<em>JSON string</em>) – The json to be processed</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="server_to_server.Server_to_Server.read">
+<span class="sig-name descname"><span class="pre">read</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#server_to_server.Server_to_Server.read" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to read from the connected socket</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="server_to_server.Server_to_Server.reg">
+<span class="sig-name descname"><span class="pre">reg</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#server_to_server.Server_to_Server.reg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Registers a client to the database</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="server_to_server.Server_to_Server.write">
+<span class="sig-name descname"><span class="pre">write</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#server_to_server.Server_to_Server.write" title="Permalink to this definition">¶</a></dt>
+<dd><p>Function to write to the output buffer of the object</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">FastChat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">server</a><ul class="current">
+<li class="toctree-l2"><a class="reference internal" href="request.html">request module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="server_temp.html">server_temp module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="server_to_balancing_server.html">server_to_balancing_server module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="server_to_client.html">server_to_client module</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">server_to_server module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">server</a><ul>
+      <li>Previous: <a href="server_to_client.html" title="previous chapter">server_to_client module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, FireChat.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/server_to_server.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

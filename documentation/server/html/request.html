@@ -1,0 +1,366 @@
+
+<!DOCTYPE html>
+
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+    <title>request module &#8212; FastChat  documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/alabaster.css" />
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/jquery.js"></script>
+    <script src="_static/underscore.js"></script>
+    <script src="_static/doctools.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="server_temp module" href="server_temp.html" />
+    <link rel="prev" title="server" href="modules.html" />
+   
+  <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <section id="module-request">
+<span id="request-module"></span><h1>request module<a class="headerlink" href="#module-request" title="Permalink to this headline">¶</a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="request.AESCipher">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">AESCipher</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#request.AESCipher" title="Permalink to this definition">¶</a></dt>
+<dd><p>Bases: <code class="xref py py-class docutils literal notranslate"><span class="pre">object</span></code></p>
+<p>This class is used for easy padded AES encryption</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>bs</strong> (<em>int</em>) – AES block size</p></li>
+<li><p><strong>key</strong> (<em>rsa.hash</em>) – AES key that will be used</p></li>
+</ul>
+</dd>
+</dl>
+<dl class="py method">
+<dt class="sig sig-object py" id="request.AESCipher.decrypt">
+<span class="sig-name descname"><span class="pre">decrypt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">enc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#request.AESCipher.decrypt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="request.AESCipher.encrypt">
+<span class="sig-name descname"><span class="pre">encrypt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">raw</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#request.AESCipher.encrypt" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.create_onboarding_req">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">create_onboarding_req</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uname</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sndr_pub_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PublicKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sndr_priv_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PrivateKey</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#request.create_onboarding_req" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create onboarding request that returning client sends to server</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>uname</strong> (<em>str</em>) – Username</p></li>
+<li><p><strong>time</strong> (<em>float</em>) – Timestamp</p></li>
+<li><p><strong>sndr_pub_key</strong> (<em>rsa.key.PublicKey</em>) – Sender’s public key</p></li>
+<li><p><strong>sndr_priv_key</strong> (<em>rsa.key.PrivateKey</em>) – Sender’s private key</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Onbarding request</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.create_registering_req">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">create_registering_req</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">uname</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sndr_pub_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PublicKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sndr_priv_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PrivateKey</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#request.create_registering_req" title="Permalink to this definition">¶</a></dt>
+<dd><p>Create registering request that first time client sends to server</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>uname</strong> (<em>str</em>) – Username</p></li>
+<li><p><strong>time</strong> (<em>float</em>) – Timestamp</p></li>
+<li><p><strong>sndr_pub_key</strong> (<em>rsa.key.PublicKey</em>) – Sender’s public key</p></li>
+<li><p><strong>sndr_priv_key</strong> (<em>rsa.key.PrivateKey</em>) – Sender’s private key</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Registering request</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.decrypt_e2e_req">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">decrypt_e2e_req</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recip_priv_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PrivateKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sndr_pub_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PublicKey</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#request.decrypt_e2e_req" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decrypts json string produced by encrypting request using encrypt_e2e_req</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>req_string</strong> (<em>str</em>) – The JSON string to be decrypted</p></li>
+<li><p><strong>recip_priv_key</strong> (<em>rsa.key.PrivateKey</em>) – Private key of the recipient</p></li>
+<li><p><strong>sndr_pub_key</strong> (<em>rsa.key.PublicKey</em>) – Public key of the sender</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Decrypted request</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.encrypt_e2e_req">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">encrypt_e2e_req</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">req</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recip_pub_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PublicKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sndr_priv_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PrivateKey</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">aes_key_len</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">128</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#request.encrypt_e2e_req" title="Permalink to this definition">¶</a></dt>
+<dd><p>Encrypts a json message without encrypting the header</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>req</strong> (<em>dict</em>) – JSON to be encrypted</p></li>
+<li><p><strong>recip_pub_key</strong> (<em>rsa.key.PublicKey</em>) – Recipient’s public key</p></li>
+<li><p><strong>sndr_priv_key</strong> – Sender’s privte key</p></li>
+<li><p><strong>aes_key_len</strong> (<em>int</em>) – Length of AES key</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Encrypted message</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.priv_key_to_str">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">priv_key_to_str</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">priv_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PrivateKey</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#request.priv_key_to_str" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts private key to a string</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>pub_key</strong> (<em>rsa.key.PrivateKey</em>) – Private key</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Converted string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.pub_key_to_str">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">pub_key_to_str</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pub_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PublicKey</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#request.pub_key_to_str" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts public key to a string</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>pub_key</strong> (<em>rsa.key.PublicKey</em>) – Public key</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Converted string</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.str_to_priv_key">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">str_to_priv_key</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">rsa.key.PrivateKey</span></span></span><a class="headerlink" href="#request.str_to_priv_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts string to a private key</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>s</strong> (<em>str</em>) – Private key string</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Priavte key</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>rsa.key.PrivateKey</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.str_to_pub_key">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">str_to_pub_key</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">s</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">rsa.key.PublicKey</span></span></span><a class="headerlink" href="#request.str_to_pub_key" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts string to a public key</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>s</strong> (<em>str</em>) – Public key string</p>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Public key</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>rsa.key.PublicKey</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.verify_e2e_req">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">verify_e2e_req</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">req</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sndr_pub_key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">rsa.key.PublicKey</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#request.verify_e2e_req" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verifies signature of a request created using encrypt_e2e_req</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>req</strong> (<em>dict</em>) – The request</p></li>
+<li><p><strong>sndr_pub_key</strong> (<em>rsa.key.PublicKey</em>) – Sender’s public key</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Whether request signature is valid</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.verify_onboarding_req">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">verify_onboarding_req</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_string</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pub_key</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#request.verify_onboarding_req" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verify signature of request created using create_onboarding_req</p>
+<blockquote>
+<div><dl class="field-list simple">
+<dt class="field-odd">param json_string</dt>
+<dd class="field-odd"><p>JSON string to be verified</p>
+</dd>
+<dt class="field-even">type json_string</dt>
+<dd class="field-even"><p>str</p>
+</dd>
+<dt class="field-odd">param pub_key</dt>
+<dd class="field-odd"><p>Public key of signer</p>
+</dd>
+<dt class="field-even">type pub_key</dt>
+<dd class="field-even"><p>rsa.key.PublicKey</p>
+</dd>
+</dl>
+</div></blockquote>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>recip_pub_key</strong> – The public key    :return: Whether request signature is valid
+:rtype: bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="request.verify_registering_req">
+<span class="sig-prename descclassname"><span class="pre">request.</span></span><span class="sig-name descname"><span class="pre">verify_registering_req</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">json_string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#request.verify_registering_req" title="Permalink to this definition">¶</a></dt>
+<dd><p>Verify signature of request created using create_registering_req</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>json_string</strong> (<em>str</em>) – JSON string to be verified</p></li>
+<li><p><strong>pub_key</strong> (<em>rsa.key.PublicKey</em>) – Public key of signer</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>Whether request signature is valid</p>
+</dd>
+<dt class="field-odd">Return type</dt>
+<dd class="field-odd"><p>bool</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="index.html">FastChat</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption" role="heading"><span class="caption-text">Contents:</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="reference internal" href="modules.html">server</a><ul class="current">
+<li class="toctree-l2 current"><a class="current reference internal" href="#">request module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="server_temp.html">server_temp module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="server_to_balancing_server.html">server_to_balancing_server module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="server_to_client.html">server_to_client module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="server_to_server.html">server_to_server module</a></li>
+</ul>
+</li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="index.html">Documentation overview</a><ul>
+  <li><a href="modules.html">server</a><ul>
+      <li>Previous: <a href="modules.html" title="previous chapter">server</a></li>
+      <li>Next: <a href="server_temp.html" title="next chapter">server_temp module</a></li>
+  </ul></li>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2022, FireChat.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 4.3.2</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="_sources/request.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
