@@ -5,12 +5,12 @@ import selectors
 import types
 import json
 import sqlite3
-import psycopg2
+#import psycopg2
 from server_to_server import Server_to_Server
 from server_to_client import Server_to_Client
 from balancing_server_to_server import Balancing_Server_to_Server
 
-import rsa
+#import rsa
 sys.path.append('../')
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
 
