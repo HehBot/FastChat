@@ -1,6 +1,0 @@
-*.swp
-__pycache__/
-.mypy_cache/
-*.db*
-test/tmp*/*
-test/*.py
