@@ -33,7 +33,7 @@ class Server_temp:
         :param newdata: The data to be appended to the output buffer
         :type newdata: String
         """
-        print(f'ADDING TO OUTPUT BUFFER of {name}')
+        print(f'ADDING TO OUTPUT BUFFER of {name}', end=' ')
         curr_time = time()
         print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
         self.local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, name))
