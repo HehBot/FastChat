@@ -3,7 +3,7 @@ from sys import argv
 num_files = int(argv[1])
 arr=[]
 avg = 0
-
+worked = True
 for i in range(num_files):
     file_name = "client" + str(i + 1) + "/client" + str(i + 1) + ".out"
     f = open(file_name,'r')
@@ -33,6 +33,12 @@ for i in range(num_files):
             tot = tot + 1
             arr.append(time)
             tot_time = tot_time + time
-
+    if count!= 6*num_files:
+        print(f'ERROR IN {file_name}')
+        print(f'count is {count} instead of {6*num_files}')
+        worked = False
     avg = avg + (tot_time/tot)
+
+if worked:
+    print("All data has been received")
 print("Average latency = " + str(1000 * avg/num_files) + " ms")
