@@ -497,7 +497,7 @@ $G1::
         hdr = '>' + recip_uname
 
         msg = x[u + 1:]
-        print(strftime(f"\nSending mssg at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
+        print(strftime(f"\nSending mssg at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}\n", localtime(sndr_time)))
         req = { "hdr":hdr, "msg":msg, "time": str(sndr_time)}
 
         if file != "":
