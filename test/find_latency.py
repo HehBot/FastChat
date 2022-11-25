@@ -1,7 +1,6 @@
 from sys import argv
 
 num_files = int(argv[1])
-arr=[]
 avg = 0
 worked = True
 for i in range(num_files):
@@ -11,19 +10,21 @@ for i in range(num_files):
     count = -1
     tot = 0
     tot_time = 0
-
     recv_time = None
     onb_time = (60 * float(lines[0][-11:-9]) + float(lines[0][-8:]))
 
-    lines = lines[1:]
-
+    lines = lines[1:-1]
     for line in lines:
+        if line == "\n" or line=="":
+            continue
+        if  "Sending" in line :
+            continue
         count = count + 1
-        if count % 6 == 1:
+        if count % 4 == 0:
             csec = float(line[-8:])
             cmin = float(line[-11:-9])
             recv_time = (60 * cmin + csec)
-        elif count % 6 == 2:
+        elif count % 4 == 1:
             csec = float(line[-8:])
             cmin = float(line[-11:-9])
             sent_time = 60 * cmin + csec
@@ -31,9 +32,8 @@ for i in range(num_files):
                 continue
             time = recv_time - sent_time
             tot = tot + 1
-            arr.append(time)
             tot_time = tot_time + time
-    if count!= 6*num_files:
+    if count!= 4*num_files-1:
         print(f'ERROR IN {file_name}')
         print(f'count is {count} instead of {6*num_files}')
         worked = False
