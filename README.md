@@ -24,7 +24,7 @@ In `code` folder,
 ## Testing
 In `test` folder,
  - `./cts localhost <port> <num>` to emulate `<num>` clients connecting, interacting with each other, and disconnecting
- - `python3 find_latency.py <num>` to evaluate average latency, where `<num>` is number of clients
+ - `python3 find_latency_throughput.py <num>` to evaluate average latency, where `<num>` is number of clients
 
 ## Contributions
 TODO
