@@ -1,9 +1,28 @@
 from server_temp import Server_temp
 from request import str_to_pub_key, verify_e2e_req
 import json
+from time import time, strftime, localtime
 
 class Server_to_Client(Server_temp):
+    """Class that abstracts the data corresponding to server to client 
+
+    :param sock_type: The type of socket connected to (client in this case)
+    :type sock_type: String
+    :param addr: The address of the connected socket
+    :type addr: ID: port
+    :param inb: Input buffer for this connection
+    :type inb: String
+    :param cursor: The cursor for the shared database
+    :type cursor: SQL cursor
+    :param conn: The connection to the shared database
+    :type conn: SQL connection
+    :param pub_key: The public key of the client
+    :type pub_key: String
+
+    """
     def __init__(self, client_addr, uname:str, client_sock, local_cursor, this_server_name:str, cursor, conn, other_servers, pub_key:str):
+        """The constructor for the class
+        """
         Server_temp.__init__(self, uname, client_sock, local_cursor, this_server_name, other_servers)
         self.sock_type = "client_sock" 
         self.addr = client_addr 
@@ -14,6 +33,8 @@ class Server_to_Client(Server_temp):
         self.req = {}
         
     def write(self):
+        """Function to send the output buffer of the connection and empty the corresponding output buffer
+        """
         output_buffer = self.local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{self.uname}'").fetchone()
 
         if output_buffer != None and output_buffer[0] != '':
@@ -21,6 +42,8 @@ class Server_to_Client(Server_temp):
             self.bigsendall(output_buffer[0].encode("utf-8"))
 
     def read(self):
+        """Function to read from the connection and appending it to the output buffer of the required server
+        """
         recv_data = self.sock.recv(4096).decode("utf-8")
 
         if recv_data == "":
@@ -49,7 +72,14 @@ class Server_to_Client(Server_temp):
             i += 1
 
     def process_data(self, json_string):
-        print("\nLOADS")
+        """Function to process the incoming json file
+        
+        :param json_string: The json to be processed
+        :type json_string: JSON string
+        """
+        print("\nLOADS ", end=' ')
+        curr_time = time()
+        print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
         print(json_string)
         print()
         self.req = json.loads(json_string)
@@ -69,6 +99,8 @@ class Server_to_Client(Server_temp):
             self.group_operation()
 
     def pub_key_req(self):
+        """Function to request for public key
+        """
         resp = None
         self.cursor.execute("SELECT pub_key FROM customers WHERE uname='%s'" % (self.req["msg"]))
         resp_pub_key = self.cursor.fetchone()
@@ -81,6 +113,8 @@ class Server_to_Client(Server_temp):
         self.append_output_buffer(self.uname, json.dumps(resp))
 
     def group_register(self):
+        """Function to register to a group
+        """
         # TODO may need to implement transaction  
         self.cursor.execute("SELECT isAdmin FROM groups WHERE group_id=0")
         group_id = int(self.cursor.fetchone()[0])
@@ -94,6 +128,8 @@ class Server_to_Client(Server_temp):
         print("\nRegistered new group with id " + str(group_id) + '\n')
 
     def personal_msg(self):
+        """Function to implement personal messaging
+        """
         recip_uname = self.req["hdr"][1:]
         mod_data = json.dumps({ "send_to":recip_uname, "hdr":'>' + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] })
 #TypeError: can only concatenate str (not "PublicKey") to str
@@ -106,6 +142,8 @@ class Server_to_Client(Server_temp):
         print("\nSending " + mod_data + " to " + recip_uname + '\n')
 
     def group_operation(self):
+        """Function that wraps group operations and calls group addition, removal and messaging
+        """
         if not verify_e2e_req(self.req, str_to_pub_key(self.pub_key)):
             print("Signature mismatch")
             return
@@ -118,6 +156,8 @@ class Server_to_Client(Server_temp):
             self.group_msg()
             
     def group_remove(self):
+        """Function that implements group removal 
+        """
         k = self.req["hdr"].find(":")
         group_id = int(self.req["hdr"][1:k])
         recip_uname = self.req["hdr"][k + 2:]
@@ -197,6 +237,8 @@ class Server_to_Client(Server_temp):
             return  
 
     def group_add(self):
+        """Function that implements group removal
+        """
         k = self.req["hdr"].find(":")
         group_id = int(self.req["hdr"][1:k])
         recip_uname = self.req["hdr"][k + 1:]
@@ -238,6 +280,8 @@ class Server_to_Client(Server_temp):
             return
 
     def group_msg(self):
+        """Function that implements group messaging
+        """
         group_id = int(self.req["hdr"][1:])
         mod_data = { "hdr":'<' + str(group_id) + ':' + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] }
         self.cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id))

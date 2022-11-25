@@ -3,19 +3,34 @@ import json
 import sqlite3
 
 class Server_to_Server(Server_temp):
+    """Class that abstracts the server to server data
+
+    :param sock_type: The type of socket that we are connecting to
+    :type sock_type: Socket
+    :param addr: Address of the server we have connected to
+    :type addr: Ip:port
+    :param inb: Input buffer for this connection
+    :type inb: String
+    """
     def __init__(self, other_server_addr, uname, server_sock, local_cursor, this_server_name, other_servers ):
+        """Class constructor
+        """
         Server_temp.__init__(self, uname, server_sock, local_cursor, this_server_name, other_servers)
         self.sock_type = "server_sock" 
         self.addr = other_server_addr 
         self.inb = ''
 
     def write(self):
+        """Function to write to the output buffer of the object
+        """
         output_buffer = self.local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{self.uname}'").fetchone()
         if output_buffer != None and output_buffer[0] != '':
             self.local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{self.uname}'")
             self.bigsendall(output_buffer[0].encode("utf-8"))
 
-    def read(self): 
+    def read(self):
+        """Function to read from the connected socket
+        """
         recv_data = self.sock.recv(4096).decode("utf-8")
         if recv_data == "":
             print(f"Closing connection to {self.addr}")
@@ -38,7 +53,12 @@ class Server_to_Server(Server_temp):
                 n += 1
             i += 1
 
-    def process_server_data(self, json_string):
+    def process_server_data(self, json_string): 
+        """Function to process the incoming json file
+        
+        :param json_string: The json to be processed
+        :type json_string: JSON string
+        """
         print("\nProcessing data recieved from Server : ")
         print(json_string)
         print()
@@ -54,6 +74,8 @@ class Server_to_Server(Server_temp):
             self.append_output_buffer(recip_uname, json.dumps(self.req))
 
     def reg(self):
+        """Registers a client to the database
+        """
         new_person = self.req["msg"]
         print("Trying to insert " + new_person)
         self.local_cursor.execute("INSERT INTO local_buffer (uname, output_buffer) VALUES('%s', '')" % (new_person))
@@ -63,6 +85,8 @@ class Server_to_Server(Server_temp):
         print()
 
     def onb(self):
+        """Function to allow an existing client to onboard and communicate it to the required server
+        """
         new_person = self.req["msg"]
         self.local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'" % (self.uname, new_person))
         output_buffer = self.local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{new_person}'").fetchone()[0]
@@ -74,6 +98,8 @@ class Server_to_Server(Server_temp):
         print()
 
     def left(self):
+        """Function to signify when a user goes offline
+        """
         left_person = self.req["msg"]
         self.local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'" % (self.this_server_name, left_person))
         print()

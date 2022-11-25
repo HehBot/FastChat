@@ -5,12 +5,12 @@ import selectors
 import types
 import json
 import sqlite3
-#import psycopg2
+import psycopg2
 from server_to_server import Server_to_Server
 from server_to_client import Server_to_Client
-from balancing_server_to_server import Balancing_Server_to_Server
+from server_to_balancing_server import Server_to_Balancing_Server
 
-#import rsa
+import rsa
 sys.path.append('../')
 from request import verify_registering_req, verify_onboarding_req, pub_key_to_str, str_to_pub_key
 
@@ -35,14 +35,14 @@ local_cursor = local_conn.cursor()
 
 if not dbfile:
     local_cursor.execute("CREATE TABLE local_buffer (uname TEXT NOT NULL, output_buffer TEXT, PRIMARY KEY(uname))")
-    local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL, serv_name TEXT, PRIMARY KEY(uname))")
+    local_cursor.execute("CREATE TABLE server_map (uname TEXT NOT NULL, serv_name TEXT NOT NULL, PRIMARY KEY(uname))")
 
 sel = selectors.DefaultSelector()
 
 balancing_server_sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 balancing_server_sock.connect(balancing_server_addr)
 
-data_class = Balancing_Server_to_Server(":balance_serv:", balancing_server_sock, local_cursor, this_server_name, [])
+data_class = Server_to_Balancing_Server(":balance_serv:", balancing_server_sock, local_cursor, this_server_name, [])
 sel.register(fileobj=balancing_server_sock, events=selectors.EVENT_WRITE, data=data_class)
 
 init_req = json.dumps({ "hdr":"server", "msg":this_server_name })
