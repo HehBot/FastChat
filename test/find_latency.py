@@ -1,6 +1,5 @@
 from sys import argv
 num_files = int(argv[1])
-num = int(argv[2])
 avg = 0
 for i in range(num_files):
     file_name = "client" + str(i + 1) + "/client" + str(i + 1) + ".out"

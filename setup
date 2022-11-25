@@ -1,0 +1,6 @@
+#!/bin/bash
+
+sudo apt install postgresql-12
+sudo service postgresql start
+sudo -u postgres psql -U 'postgres' -c "ALTER USER postgres PASSWORD 'Hello@123'"
+sudo -u postgres psql -U 'postgres' -c "CREATE DATABASE fastchat"
