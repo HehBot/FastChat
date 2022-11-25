@@ -105,7 +105,9 @@ $G1::
         
         resp = json.loads(self.client_sock.recv(4096).decode("utf-8"))
 
-        print(resp["msg"])
+        print(resp["msg"], end=' ')
+        curr_time = time()
+        print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
         return uname, pub_key, priv_key 
 
     def process_data(self, data):
