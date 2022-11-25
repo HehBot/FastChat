@@ -8,7 +8,33 @@ from request import *
 from time import time, strftime, localtime
 
 class Client:
-    def __init__(self, dbfile:bool, server_addr:tuple):
+    '''This class contains the client object with all required members
+    
+    :param pub_key_info: Contains reply to a pub key request, first entry is pub key second is if it has been set third is if that person doesn't exist
+    :type pub_key_info: [String,Bool,Bool]
+    :param grp_registering_info: Contains reply to a request for unique group id while creating a group, first
+    :type grp_registering_info: [String,Bool]
+    :param client_sock: The socket of client
+    :type client_sock: Socket
+    :param conn: Connection to the database
+    :type conn: sqlite.connect
+    :param cursor: Cursor in the database
+    :type cursor: sqlite.cursor
+    :param uname: Clients username
+    :type uname: String
+    :param pub_key: Clients public key
+    :type pub_key: rsa.public_key
+    :param priv_key: Clients private key
+    :type priv_key: rsa.private_key
+    '''
+    def __init__(self, dbfile, server_addr):
+        '''Class constructor
+
+        :param dbfile: True if user is already registered
+        :type dbfile: Boolean
+        :param server_addr: Address to where main server is
+        :type server_addr: Tuple (String, int)
+        '''
         self.pub_key_info = [None, False, False] # recip_pub_key, pub_key_set, incorrect_uname
         self.grp_registering_info = [None, False] # Group_id, is Group id set
 
@@ -22,14 +48,27 @@ class Client:
         else :
             self.uname, self.pub_key, self.priv_key = self.onboard(server_addr)
     def bigsendall(self, bytedata):
+        '''To send big chunks of data by breaking into smaller chunks
+        
+        :param bytedata: The encoded data
+        :type bytedata: bytearray
+        '''
         while len(bytedata) > 0:
             transmitted = self.client_sock.send(bytedata)
             bytedata = bytedata[transmitted:]
     def destroy(self):
+        '''Function called when connection ends'''
         self.client_sock.close()
         self.conn.commit()
         self.cursor.close()
     def register(self, server_addr):
+        '''User registering for first time, we generate public and private key and register with the servers
+
+        :param server_addr: The server address to which we have to connect at first
+        :type server_addr: Tuple (string,int)
+        :return: (username, public key, private key)
+        :rtype: tuple (string , rsa.public_key, rsa.private_key)
+        '''
         pub_key, priv_key = newkeys(512)
 
         while (True):
@@ -85,6 +124,13 @@ $G1::
 -----------------------------------------""")
         return uname, pub_key, priv_key
     def onboard(self, server_addr):
+        '''registered user coming online, we get public key and private key from local database and send onboarding message to the servers
+
+        :param server_addr: The server address to which we have to connect at first to get directed to a server
+        :type server_addr: Tuple (string,int)
+        :return: (username, public key, private key)
+        :rtype: tuple (string , rsa.public_key, rsa.private_key)
+        '''
         uname, pub_key, priv_key = self.cursor.execute("SELECT group_name, group_pub_key, group_priv_key FROM group_name_keys WHERE group_id=0").fetchone()
 
         pub_key = str_to_pub_key(pub_key)
@@ -111,8 +157,14 @@ $G1::
         return uname, pub_key, priv_key 
 
     def process_data(self, data):
+        '''To process a received message
+
+        :param data: The string we received
+        :type data: String
+        '''
         req = json.loads(data)
 
+        # Pub key request failed
         if req["hdr"][:5] == "error":
             code = int(req["hdr"][6:])
             if code == 4:
@@ -121,15 +173,18 @@ $G1::
             elif code == 5:
                 print("You (admin) may not leave the group")
         
+        # Pub key request succesfull
         elif req["hdr"] == "pub_key":
             self.pub_key_info[0] = str_to_pub_key(req["msg"])
             self.pub_key_info[1] = True
             self.pub_key_info[2] = False
 
+        # Group id request answered
         elif req["hdr"] == "group_id":
             self.grp_registering_info[0] = int(req["msg"])
             self.grp_registering_info[1] = True
 
+        # Removed from group
         elif req["hdr"][:13] == "group_removed":
             group_id = int(req["hdr"].split(':')[1])
             group_name = self.cursor.execute("SELECT group_name FROM group_name_keys WHERE group_name_keys.group_id=%d"%(group_id)).fetchone()
@@ -137,6 +192,7 @@ $G1::
                 self.cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
                 print(f"You were removed from {group_name[0]}(id {group_id})")
 
+        # Some other client removed from a group you are in
         elif req["hdr"][:14] == "person_removed":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')
             sent_data = json.dumps({ "hdr":'<' + str(group_id) + "::" + person, "msg":req["msg"], "aes_key":req["aes_key"], "sign":req["sign"], "time":req["time"] })
@@ -146,12 +202,14 @@ $G1::
             if recv != None:
                 print(f"{person} was removed from the group {group_name} (id {group_id})")
 
+        # You succesfully left the group
         elif req["hdr"][:10] == "group_left":
             group_id = int(req["hdr"].split(':')[1])
             group_name = self.cursor.execute("SELECT group_name FROM group_name_keys WHERE group_id=%d"%(group_id)).fetchone()[0]
             self.cursor.execute("DELETE FROM group_name_keys WHERE group_id=%d" % (group_id))
             print(f"You left {group_name} (id {group_id})")
 
+        # Some other client left a group you are in
         elif req["hdr"][:11] == "person_left":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')
             sent_data = json.dumps({ "hdr":'<' + str(group_id) + "::" + person, "msg":req["msg"], "aes_key":req["aes_key"], "sign":req["sign"], "time":req["time"] })
@@ -161,6 +219,7 @@ $G1::
             if recv != None:
                 print(f"{person} left {group_name} (id {group_id})")
 
+        # You were added to the group
         elif req["hdr"][:11] == "group_added":
             group_id = int(req["hdr"].split(':')[1])
             admin_name = req["hdr"].split(":")[2]
@@ -184,6 +243,7 @@ $G1::
             print(strftime(f"Sent at %a, %d %b %Y %H:%M:%S.{str(sndr_time - int(sndr_time))[2:6]}", localtime(sndr_time)))
             print(f"{admin_name} added you to {group_name} (id {group_id})\n")
 
+        # Some other client was added to the group you are in
         elif req["hdr"][:12] == "person_added":
             _, group_id, person, sndr_pub_key = req["hdr"].split(':')
 
@@ -257,6 +317,15 @@ $G1::
                 f.close()
 
     def send_group_message(self, x, attached_file_name, file):
+        '''Sending group message
+
+        :param x:The message in the formate group_name+mssg
+        :type x: string
+        :param attached_file_name: The name of the attached file
+        :type attached_file_name: string
+        :file: The contents of the file, empty if not attached
+        :type file: bytearray 
+        '''
         u = x.find(':')
         group_name = x[:u]
         group_info = self.cursor.execute("SELECT group_id, group_pub_key, group_priv_key FROM group_name_keys WHERE group_name ='%s'" % (group_name)).fetchall()
@@ -292,6 +361,11 @@ $G1::
             print(f"You are not a member of group {group_name}")
 
     def remove_person(self, x):
+        '''To remove person from a group 
+        
+        :param x: Contains group name followed by name of person to be removed seperated by colon
+        :type x: String
+        '''
         u = x.find(':')
         group_name = x[:u]
         
@@ -323,6 +397,11 @@ $G1::
         else:
             print(f"You are not a member of group {group_name}")
     def add_to_group(self, x):
+        '''To add a member to a group
+        
+        :param x: The group name followed by the name of the person to be removed seperated by colon
+        :type x: String
+        '''
         u = x.find(':')
         group_name = x[:u]
 
@@ -365,6 +444,11 @@ $G1::
         else:
             print(f"You are not a member of group {group_name}")
     def create_group(self, group_name):
+        '''To create a group 
+        
+        :param x: Group name
+        :type x: String
+        '''
         if ':' in group_name:
             print("Group name may not contain ':'")
         else:
@@ -384,6 +468,15 @@ $G1::
 
             print(f"\nCreated new group {group_name} with id {group_id}\n")
     def send_personal_message(self, x, attached_file_name, file):
+        '''Sending  personal
+
+        :param x:The message in the formate recipients_name+message
+        :type x: string
+        :param attached_file_name: The name of the attached file
+        :type attached_file_name: string
+        :file: The contents of the file, empty if no file 
+        :type file: bytearray 
+        '''
         u = x.find(':')
         recip_uname = x[:u]
 
