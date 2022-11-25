@@ -387,6 +387,8 @@ $G1::
         u = x.find(':')
         recip_uname = x[:u]
 
+        sndr_time = time()
+
         pub_key_req = json.dumps({ "hdr":"pub_key", "msg":recip_uname })
         self.client_sock.sendall(pub_key_req.encode("utf-8"))
 
@@ -402,7 +404,7 @@ $G1::
         hdr = '>' + recip_uname
 
         msg = x[u + 1:]
-        req = { "hdr":hdr, "msg":msg, "time": str(time())}
+        req = { "hdr":hdr, "msg":msg, "time": str(sndr_time)}
 
         if file != "":
             req["file"] = base64.b64encode(attached_file_name.encode("utf-8")).decode("utf-8") + ' ' + file
