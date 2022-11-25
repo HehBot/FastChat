@@ -42,7 +42,6 @@ try:
             continue
         elif x == 'q':
             print("Closing")
-            the_client.destroy()
             break
         elif x == "!":
             attached_file_path = askopenfilename()
@@ -69,4 +68,5 @@ try:
             
 except KeyboardInterrupt:
     print("Closing")
-    the_client.destroy()
+
+the_client.destroy()

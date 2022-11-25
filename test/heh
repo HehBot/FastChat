@@ -1,0 +1,4 @@
+#!/bin/bash
+
+mkdir client$3 && cd client$3
+python3 ../../client/main.py $1 $2

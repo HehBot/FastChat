@@ -74,14 +74,18 @@ def encrypt_e2e_req(req, recip_pub_key, sndr_priv_key, aes_key_len=128):
 
     return json.dumps({ "hdr":req["hdr"], "msg":enc_msg, "aes_key":enc_aes_key, "time":enc_time, "sign":sign })
 
+def verify_e2e_req(req, sndr_pub_key):
+    try:
+        rsa.verify((req["hdr"] + req["msg"] + req["aes_key"] + req["time"]).encode("utf-8"), base64.b64decode(req["sign"]), sndr_pub_key)
+        return True
+    except rsa.pkcs1.VerificationError:
+        return False
+
 def decrypt_e2e_req(json_string, recip_priv_key, sndr_pub_key):
     req = json.loads(json_string)
     
-    try:
-        rsa.verify((req["hdr"] + req["msg"] + req["aes_key"] + req["time"]).encode("utf-8"), base64.b64decode(req["sign"]), sndr_pub_key)
-    except rsa.pkcs1.VerificationError:
+    if not verify_e2e_req(req, sndr_pub_key):
         print("Signature mismatch")
-        # TODO
         return
 
     aes_key = rsa.decrypt(base64.b64decode(req["aes_key"]), recip_priv_key)

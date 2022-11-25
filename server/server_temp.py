@@ -17,7 +17,7 @@ class Server_temp:
 
     def bigsendall(self, bytedata):
         while len(bytedata) > 0:
-            transmitted = self.client_sock.send(bytedata)
+            transmitted = self.sock.send(bytedata)
             bytedata = bytedata[transmitted:]
 
 class Server(Server_temp):

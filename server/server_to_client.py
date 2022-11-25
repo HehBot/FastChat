@@ -1,9 +1,9 @@
 from server_temp import Server_temp
-from request import pub_key_to_str
-import json 
+from request import str_to_pub_key, verify_e2e_req
+import json
 
 class Server_to_Client(Server_temp):
-    def __init__(self, client_addr, uname, client_sock, local_cursor, this_server_name, cursor, conn, other_servers, pub_key):
+    def __init__(self, client_addr, uname:str, client_sock, local_cursor, this_server_name:str, cursor, conn, other_servers, pub_key:str):
         Server_temp.__init__(self, uname, client_sock, local_cursor, this_server_name, other_servers)
         self.sock_type = "client_sock" 
         self.addr = client_addr 
@@ -11,6 +11,7 @@ class Server_to_Client(Server_temp):
         self.cursor = cursor
         self.conn = conn 
         self.pub_key = pub_key
+        self.req = {}
         
     def write(self):
         output_buffer = self.local_cursor.execute(f"SELECT output_buffer FROM local_buffer WHERE uname='{self.uname}'").fetchone()
@@ -94,7 +95,7 @@ class Server_to_Client(Server_temp):
 
     def personal_msg(self):
         recip_uname = self.req["hdr"][1:]
-        mod_data = json.dumps({ "send_to":recip_uname, "hdr":'>' + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] })
+        mod_data = json.dumps({ "send_to":recip_uname, "hdr":'>' + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] })
 #TypeError: can only concatenate str (not "PublicKey") to str
         serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
         if serv == self.this_server_name:
@@ -105,6 +106,10 @@ class Server_to_Client(Server_temp):
         print("\nSending " + mod_data + " to " + recip_uname + '\n')
 
     def group_operation(self):
+        if not verify_e2e_req(self.req, str_to_pub_key(self.pub_key)):
+            print("Signature mismatch")
+            return
+
         if "::" in self.req["hdr"][1:]:
             self.group_remove()
         elif ":" in self.req["hdr"][1:]:
@@ -119,14 +124,15 @@ class Server_to_Client(Server_temp):
 
         self.cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, self.uname))
         is_admin = self.cursor.fetchone()
+
         # Admin removing someone else
-        if is_admin!=None and is_admin[0] == 1 and recip_uname != self.uname:
+        if is_admin != None and is_admin[0] == 1 and recip_uname != self.uname:
             print("Removing from group")
-            # TODO Can remove from group even if not present
+            
             self.cursor.execute("DELETE FROM groups WHERE groups.group_id = '%s' AND groups.uname = '%s' " %(group_id, recip_uname))
             self.conn.commit()
 
-            resp1 = {"hdr":"group_removed:" + str(group_id) + ":" + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
+            resp1 = {"hdr":"group_removed:" + str(group_id) + ":" + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
             resp1["send_to"] = recip_uname
             serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
             if serv == self.this_server_name:
@@ -134,7 +140,7 @@ class Server_to_Client(Server_temp):
             else:
                 self.append_output_buffer(serv, json.dumps(resp1))
 
-            resp2 = {"hdr":"person_removed:" + str(group_id) + ":" + recip_uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
+            resp2 = {"hdr":"person_removed:" + str(group_id) + ":" + recip_uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
             self.cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
             group_participants = self.cursor.fetchall()
             for i in group_participants:
@@ -148,13 +154,13 @@ class Server_to_Client(Server_temp):
             print("\nRemoved " + recip_uname + " from group " + str(group_id) + " by " + self.uname + '\n')
 
         # Admin leaving
-        elif is_admin!=None and is_admin[0] == 1 and recip_uname == self.uname:
+        elif is_admin != None and is_admin[0] == 1 and recip_uname == self.uname:
             print("Admin may not leave group")
             resp1 = json.dumps({"hdr":"error:5", "msg":"Admin may not leave group"})
             self.append_output_buffer(recip_uname, resp1)
 
         # If not admin
-        elif is_admin!=None and is_admin[0]!=1:
+        elif is_admin != None and is_admin[0] != 1:
             # Leaving the group
             if recip_uname == self.uname:
                 print("Exiting from group")
@@ -169,7 +175,7 @@ class Server_to_Client(Server_temp):
                 else:
                     self.append_output_buffer(serv, json.dumps(resp1))
 
-                resp2 = {"hdr":"person_left:" + str(group_id) + ":" + recip_uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
+                resp2 = {"hdr":"person_left:" + str(group_id) + ":" + recip_uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
                 self.cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
                 group_participants = self.cursor.fetchall()
                 for i in group_participants:
@@ -200,8 +206,8 @@ class Server_to_Client(Server_temp):
 
         self.cursor.execute("SELECT groups.isAdmin FROM groups WHERE group_id=%d AND groups.uname='%s'" % (group_id, self.uname))
         is_admin = self.cursor.fetchone()[0]
-        if is_admin!=None and is_admin == 1:
-            resp2 = {"hdr":"person_added:" + str(group_id) + ":" + recip_uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
+        if is_admin != None and is_admin == 1:
+            resp2 = {"hdr":"person_added:" + str(group_id) + ":" + recip_uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
             self.cursor.execute("SELECT groups.uname FROM groups WHERE groups.group_id = %s" %(group_id))
             group_participants = self.cursor.fetchall()
             
@@ -216,7 +222,7 @@ class Server_to_Client(Server_temp):
             self.cursor.execute("INSERT INTO groups(group_id,  uname, isAdmin) VALUES(%d, '%s', %d)" % (group_id, recip_uname, 0))
             self.conn.commit()
 
-            resp1 = {"hdr":"group_added:" + str(group_id) + ":" + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
+            resp1 = {"hdr":"group_added:" + str(group_id) + ":" + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"]}
 
             serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'"%(recip_uname)).fetchone()[0]
 
@@ -233,18 +239,23 @@ class Server_to_Client(Server_temp):
 
     def group_msg(self):
         group_id = int(self.req["hdr"][1:])
-        mod_data = { "hdr":'<' + str(group_id) + ':' + self.uname + ':' + pub_key_to_str(self.pub_key), "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] }
+        mod_data = { "hdr":'<' + str(group_id) + ':' + self.uname + ':' + self.pub_key, "msg":self.req["msg"], "aes_key":self.req["aes_key"], "time":self.req["time"], "sign":self.req["sign"] }
         self.cursor.execute("SELECT groups.uname FROM groups WHERE group_id=%d" % (group_id))
         list_of_names = self.cursor.fetchall()
+        list_of_names = [x[0] for x in list_of_names]
+
+        if not self.uname in list_of_names:
+            return
+
+        list_of_names.remove(self.uname)
 
         for i in list_of_names:
-            if i[0] != self.uname:
-                mod_data["send_to"] = i[0]
-                serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'" % (i[0])).fetchone()[0]
-                if serv == self.this_server_name:
-                    self.append_output_buffer(i[0], json.dumps(mod_data))
-                else:
-                    self.append_output_buffer(serv, json.dumps(mod_data))
+            mod_data["send_to"] = i
+            serv = self.local_cursor.execute("SELECT serv_name FROM server_map WHERE uname = '%s'" % (i)).fetchone()[0]
+            if serv == self.this_server_name:
+                self.append_output_buffer(i, json.dumps(mod_data))
+            else:
+                self.append_output_buffer(serv, json.dumps(mod_data))
 
 
         print("\nSending " + json.dumps(mod_data) + " to " + str(group_id) + '\n')
