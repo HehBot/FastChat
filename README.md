@@ -25,6 +25,6 @@ In `code` folder,
 In `test` folder,
  - `./cts localhost <port> <num>` to emulate `<num>` clients connecting, interacting with each other, and disconnecting
  - `python3 find_latency_throughput.py <num>` to evaluate average latency, where `<num>` is number of clients
-
+ - While testing for latency, set sleep time in ct to 2 seconds and while testing throughput, set it to 0 
 ## Contributions
 TODO
