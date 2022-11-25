@@ -9,6 +9,7 @@ import psycopg2
 from server_to_server import Server_to_Server
 from server_to_client import Server_to_Client
 from server_to_balancing_server import Server_to_Balancing_Server
+from time import time, strftime, localtime
 
 import rsa
 sys.path.append('../')
@@ -70,6 +71,7 @@ if other_servers[0] != "FIRST":
 
         local_cursor.execute(f"INSERT INTO local_buffer (uname, output_buffer) VALUES ('{i}', '')")
 
+
 else:
     other_servers = []
 
@@ -84,9 +86,7 @@ conn = psycopg2.connect(dbname=psql_dbname, user=psql_uname, password=psql_pwd)
 cursor = conn.cursor()
 
 def append_output_buffer(uname, newdata):
-    print()
-    print(f'ADDING TO OUTPUT BUFFER {newdata} of {uname}')
-    print()
+    print(f'ADDING TO OUTPUT BUFFER of {uname}')
     local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, uname))
 
 def accept_wrapper(sock):
@@ -96,8 +96,9 @@ def accept_wrapper(sock):
 
     req_str = client_sock.recv(4096).decode("utf-8")
 
-    print("\nLOADING :")
-    print(req_str)
+    print("LOADING", end=' ')
+    curr_time = time()
+    print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
 
     if req_str == "":
         client_sock.close()

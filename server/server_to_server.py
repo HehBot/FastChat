@@ -1,6 +1,7 @@
 from server_temp import Server_temp
 import json
 import sqlite3
+from time import time, strftime, localtime
 
 class Server_to_Server(Server_temp):
     """Class that abstracts the server to server data
@@ -34,7 +35,7 @@ class Server_to_Server(Server_temp):
         recv_data = self.sock.recv(4096).decode("utf-8")
         if recv_data == "":
             print(f"Closing connection to {self.addr}")
-            self.stop =True
+            self.stop = True
             self.sock.close()
             return
 
@@ -59,9 +60,10 @@ class Server_to_Server(Server_temp):
         :param json_string: The json to be processed
         :type json_string: JSON string
         """
-        print("\nProcessing data recieved from Server : ")
-        print(json_string)
-        print()
+        print("Processing data recieved from Server", end=' ')
+        curr_time = time()
+        print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
+
         self.req = json.loads(json_string)
         if self.req["hdr"] == "reg":
             self.reg()
@@ -80,9 +82,7 @@ class Server_to_Server(Server_temp):
         print("Trying to insert " + new_person)
         self.local_cursor.execute("INSERT INTO local_buffer (uname, output_buffer) VALUES('%s', '')" % (new_person))
         self.local_cursor.execute("INSERT INTO server_map (uname, serv_name) VALUES('%s', '%s')" % (new_person, self.uname))
-        print()
         print(f'Added new user {new_person} to server {self.uname}')
-        print()
 
     def onb(self):
         """Function to allow an existing client to onboard and communicate it to the required server
@@ -93,15 +93,11 @@ class Server_to_Server(Server_temp):
         self.local_cursor.execute(f"UPDATE local_buffer SET output_buffer='' WHERE uname='{new_person}'")
         # forward this directly to next server
         self.append_output_buffer(self.uname, output_buffer)
-        print()
         print(f'User {new_person} is online on server {self.uname}')
-        print()
 
     def left(self):
         """Function to signify when a user goes offline
         """
         left_person = self.req["msg"]
         self.local_cursor.execute("UPDATE server_map SET serv_name = '%s' WHERE uname = '%s'" % (self.this_server_name, left_person))
-        print()
         print(f'User {left_person} went offline from server {self.uname}')
-        print()

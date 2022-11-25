@@ -1,4 +1,5 @@
 import sqlite3
+from time import time, strftime, localtime
 
 class Server_temp:
     """Class to abstract the data for a server template
@@ -32,9 +33,9 @@ class Server_temp:
         :param newdata: The data to be appended to the output buffer
         :type newdata: String
         """
-        print()
-        print(f'ADDING TO OUTPUT BUFFER {newdata} of {name}')
-        print()
+        print(f'ADDING TO OUTPUT BUFFER of {name}')
+        curr_time = time()
+        print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
         self.local_cursor.execute("UPDATE local_buffer SET output_buffer=output_buffer||'%s' WHERE uname='%s'" % (newdata, name))
 
     def bigsendall(self, bytedata):

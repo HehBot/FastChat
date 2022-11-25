@@ -1,5 +1,6 @@
 client/__pycache__/
 server/__pycache__/
+__pycache__/
 test/server*/
 test/balancing_server/
 test/client*/

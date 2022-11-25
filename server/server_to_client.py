@@ -77,11 +77,9 @@ class Server_to_Client(Server_temp):
         :param json_string: The json to be processed
         :type json_string: JSON string
         """
-        print("\nLOADS ", end=' ')
+        print("LOADS ", end=' ')
         curr_time = time()
         print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
-        print(json_string)
-        print()
         self.req = json.loads(json_string)
 
         # Response to public key request
@@ -139,7 +137,9 @@ class Server_to_Client(Server_temp):
         else:
             self.append_output_buffer(serv, mod_data)
 
-        print("\nSending " + mod_data + " to " + recip_uname + '\n')
+        print("Sending to " + recip_uname, end = ' ')
+        curr_time = time()
+        print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
 
     def group_operation(self):
         """Function that wraps group operations and calls group addition, removal and messaging
@@ -302,4 +302,6 @@ class Server_to_Client(Server_temp):
                 self.append_output_buffer(serv, json.dumps(mod_data))
 
 
-        print("\nSending " + json.dumps(mod_data) + " to " + str(group_id) + '\n')
+        print("\nSending to " + str(group_id), end = ' ')
+        curr_time = time()
+        print(strftime(f"%a, %d %b %Y %H:%M:%S.{str(curr_time - int(curr_time))[2:6]}", localtime(curr_time)))
