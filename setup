@@ -1,6 +1,9 @@
 #!/bin/bash
 
-sudo apt install postgresql-12
-sudo service postgresql start
+sudo apt install postgresql-14
+sudo systemctl start postgresql
+sudo sed -i 's/local   all             postgres                                peer/local   all             postgres                                md5/g' /etc/postgresql/*/main/pg_hba.conf
+sudo systemctl restart postgresql
+pip install rsa psycopg2-binary
 sudo -u postgres psql -U 'postgres' -c "ALTER USER postgres PASSWORD 'Hello@123'"
 sudo -u postgres psql -U 'postgres' -c "CREATE DATABASE fastchat"

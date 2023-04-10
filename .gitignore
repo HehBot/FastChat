@@ -4,3 +4,4 @@ __pycache__/
 test/server*/
 test/balancing_server/
 test/client*/
+**/*.db
